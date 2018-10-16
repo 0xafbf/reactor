@@ -80,7 +80,7 @@ void setupDebugCallback(VkInstance instance) {
 	createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 	createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 	createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-	createInfo.pfnUserCallback = debugCallback;
+	createInfo.pfnUserCallback = (PFN_vkDebugUtilsMessengerCallbackEXT)debugCallback;
 
 	VK_CHECK(CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &callbackHandle));
 }
@@ -261,8 +261,7 @@ void rCreateWindow(rEngine* engine, rWindow* window)
 	initWindow(engine, window);
 	VkSurfaceCapabilitiesKHR capabilities;
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(engine->physicalDevice, window->surface, &capabilities);
-	u32 imageCount = capabilities.maxImageCount;
-	std::cout << "max image count: " << imageCount;
+	u32 wantedImageCount = capabilities.minImageCount;
 
 	u32 formatCount;
 	vkGetPhysicalDeviceSurfaceFormatsKHR(engine->physicalDevice, window->surface, &formatCount, nullptr);
@@ -296,7 +295,7 @@ void rCreateWindow(rEngine* engine, rWindow* window)
 	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	createInfo.surface = window->surface;
 	createInfo.imageExtent = capabilities.currentExtent;
-	createInfo.minImageCount = imageCount;
+	createInfo.minImageCount = wantedImageCount;
 	createInfo.imageFormat = surfaceFormat.format;
 	createInfo.imageColorSpace = surfaceFormat.colorSpace;
 	createInfo.imageExtent = capabilities.currentExtent;
@@ -307,9 +306,35 @@ void rCreateWindow(rEngine* engine, rWindow* window)
 	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 	createInfo.presentMode = bestMode;
 	createInfo.clipped = VK_TRUE;
-	createInfo.oldSwapchain = nullptr;
+	createInfo.oldSwapchain = VK_NULL_HANDLE;
 	
 	VK_CHECK(vkCreateSwapchainKHR(engine->device, &createInfo, nullptr, &window->swapchain));
+
+	u32 imageCount = -1;
+	vkGetSwapchainImagesKHR(engine->device, window->swapchain, &imageCount, nullptr);
+	window->swapchainImages.resize(imageCount);
+	vkGetSwapchainImagesKHR(engine->device, window->swapchain, &imageCount, window->swapchainImages.data());
+
+	for (VkImage image : window->swapchainImages)
+	{
+		VkImageViewCreateInfo imageViewCI = {};
+		imageViewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		imageViewCI.image = window->swapchainImages[0];
+		imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		imageViewCI.format = surfaceFormat.format;
+		imageViewCI.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		imageViewCI.subresourceRange.baseMipLevel = 0;
+		imageViewCI.subresourceRange.levelCount = 1;
+		imageViewCI.subresourceRange.baseArrayLayer = 0;
+		imageViewCI.subresourceRange.layerCount = 1;
+
+		VkImageView imageView;
+		VK_CHECK(vkCreateImageView(engine->device, &imageViewCI, nullptr, &imageView));
+
+		window->swapchainImageViews.push_back(imageView);
+	}
+	
+
 	std::cout << "Hello";
 }
 
@@ -319,9 +344,19 @@ void rDestroyWindow(rWindow* window)
 //			vkDestroyImageView(device, imageView, nullptr);
 //		}
 	//vkDestroySwapchainKHR(device, swapChain, nullptr);
+	for (VkImageView imageView : window->swapchainImageViews)
+	{
+		vkDestroyImageView(window->engine->device, imageView, nullptr);
+	}
 	if (window->swapchain) vkDestroySwapchainKHR(window->engine->device, window->swapchain, nullptr);
 	vkDestroySurfaceKHR(window->engine->instance, window->surface, nullptr);
 	glfwDestroyWindow(window->glfwWindow);
 	auto& vec = window->engine->windows;
 	vec.erase(std::remove(vec.begin(), vec.end(), window), vec.end());
+}
+
+void rCreatePipeline()
+{
+
+
 }

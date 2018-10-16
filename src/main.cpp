@@ -14,6 +14,7 @@ int main() {
 	window.name = "My Greatest Window";
 	rCreateWindow(&engine, &window);
 	
+	rCreatePipeline();
 	while (!glfwWindowShouldClose(window.glfwWindow)) {
 		glfwPollEvents();
 	}

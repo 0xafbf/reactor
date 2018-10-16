@@ -42,7 +42,12 @@ struct rWindow
 	VkExtent2D extent;
 	rEngine* engine;
 	VkSwapchainKHR swapchain;
+
+	std::vector<VkImage> swapchainImages;
+	std::vector<VkImageView> swapchainImageViews;
 };
 
 void rCreateWindow(rEngine* engine, rWindow* window);
 void rDestroyWindow(rWindow* window);
+
+void rCreatePipeline();
