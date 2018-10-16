@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 17)
 include_directories(${Vulkan_INCLUDE_DIR})
 include_directories(reactor)
 
-set(SOURCE_FILES main.cpp)
+set(SOURCE_FILES main.cpp reactor/engine.cpp)
 
 add_executable(reactor ${SOURCE_FILES})
 
