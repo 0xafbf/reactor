@@ -8,6 +8,13 @@
 #include <vector>
 
 
+struct QueueFamilyIndices
+{
+	u32 graphicsFamily = -1;
+	u32 presentFamily = -1;
+};
+
+
 struct rWindow;
 
 struct rEngine
@@ -18,9 +25,12 @@ struct rEngine
 	VkInstance instance;
 	VkPhysicalDevice physicalDevice;
 	VkDevice device;
+	QueueFamilyIndices indices;
 	VkQueue graphicsQueue;
 	VkQueue presentQueue;
 	std::vector<rWindow*> windows;
+	VkRenderPass renderPass;
+	std::vector<VkCommandBuffer> commandBuffers;
 };
 
 /**
@@ -32,8 +42,8 @@ void rDestroyEngine(rEngine* engineInst);
 struct rWindow
 {
 	char* name;
-	i32 width;
-	i32 height;
+	u32 width;
+	u32 height;
 	GLFWwindow* glfwWindow;
 	VkSurfaceKHR surface;
 	
@@ -45,9 +55,14 @@ struct rWindow
 
 	std::vector<VkImage> swapchainImages;
 	std::vector<VkImageView> swapchainImageViews;
+	std::vector<VkFramebuffer> swapchainFramebuffers;
+	VkPipeline graphicsPipeline;
 };
 
 void rCreateWindow(rEngine* engine, rWindow* window);
 void rDestroyWindow(rWindow* window);
 
-void rCreatePipeline();
+
+void rCreatePipeline(rEngine* engine, rWindow* window, std::string vertPath, std::string fragPath );
+void rCreateFramebuffers(rEngine* engine, rWindow* window);
+void rCreateCommandPool(rEngine* engine, rWindow* window, VkCommandPool* commandPool);

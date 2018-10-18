@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include <assert.h>
+
 #define VK_CHECK(op) assert(op == VK_SUCCESS)
 
 // some convenience typedefs, reactor is made for convenience over compatibility
