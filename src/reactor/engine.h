@@ -19,7 +19,7 @@ struct rWindow;
 
 struct rEngine
 {
-	char* name;
+	string name;
 	
 	// vulkan stuff, maybe better move to a vulkan struct?
 	VkInstance instance;
@@ -29,8 +29,10 @@ struct rEngine
 	VkQueue graphicsQueue;
 	VkQueue presentQueue;
 	std::vector<rWindow*> windows;
-	VkRenderPass renderPass;
-	std::vector<VkCommandBuffer> commandBuffers;
+	
+	rEngine(string inName)
+		: name(inName)
+	{}
 };
 
 /**
@@ -39,30 +41,9 @@ struct rEngine
 void rStartEngine(rEngine* engineInst);
 void rDestroyEngine(rEngine* engineInst);
 
-struct rWindow
-{
-	char* name;
-	u32 width;
-	u32 height;
-	GLFWwindow* glfwWindow;
-	VkSurfaceKHR surface;
-	
-	VkSurfaceFormatKHR surfaceFormat;
-	VkPresentModeKHR presentMode;
-	VkExtent2D extent;
-	rEngine* engine;
-	VkSwapchainKHR swapchain;
-
-	std::vector<VkImage> swapchainImages;
-	std::vector<VkImageView> swapchainImageViews;
-	std::vector<VkFramebuffer> swapchainFramebuffers;
-	VkPipeline graphicsPipeline;
-};
-
-void rCreateWindow(rEngine* engine, rWindow* window);
-void rDestroyWindow(rWindow* window);
-
-
-void rCreatePipeline(rEngine* engine, rWindow* window, std::string vertPath, std::string fragPath );
-void rCreateFramebuffers(rEngine* engine, rWindow* window);
+void rCreatePipeline(rEngine* engine, rWindow* window, std::string vertPath, std::string fragPath, VkRenderPass renderPass, VkPipeline* pipelineOu);
 void rCreateCommandPool(rEngine* engine, rWindow* window, VkCommandPool* commandPool);
+
+
+bool rEngineShouldTick(rEngine* engine);
+void rTickEngine(rEngine* engine);

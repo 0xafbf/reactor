@@ -2,6 +2,7 @@
 #pragma once
 
 #include <assert.h>
+#include <string>
 
 #define VK_CHECK(op) assert(op == VK_SUCCESS)
 
@@ -16,6 +17,8 @@ typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
+
+typedef std::string string;
 
 // I do this thinking in being able to easily change the math to use double
 // we'll have to see how it works.

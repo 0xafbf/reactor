@@ -3,22 +3,25 @@
 #include <vector>
 #include <assert.h>
 #include <iostream>
-
-#include "vulkan/vulkan.h"
-#include "GLFW/glfw3.h"
-
-#include "types.h"
 #include <set>
 #include <algorithm>
 #include <iostream>
 #include <iosfwd>
 #include <fstream>
 
+#include "vulkan/vulkan.h"
+#include "GLFW/glfw3.h"
+
+#include "types.h"
+#include "window.h"
+
 #ifdef NDEBUG
 constexpr bool enableValidationLayers = false;
 #else
 constexpr bool enableValidationLayers = true;
 #endif
+
+//#define DEBUG_VK_CALLBACK
 
 std::vector<const char*> getValidationLayers()
 {
@@ -73,12 +76,15 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 VkDebugUtilsMessengerEXT callbackHandle;
 VkBool32 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
 	std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl << std::endl;
-
+	// uncomment for breaking in error
+#ifdef DEBUG_VK_CALLBACK
+	assert(messageSeverity < VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT);
+#endif
 	return VK_FALSE;
 };
 void setupDebugCallback(VkInstance instance) {
 	if (!enableValidationLayers) return;
-
+	
 	VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 	createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
@@ -98,7 +104,7 @@ void rStartEngine(rEngine* engineInst)
 	// Set up the vulkan instance
 	VkApplicationInfo appInfo = {};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pApplicationName = engineInst->name;
+	appInfo.pApplicationName = engineInst->name.c_str();
 	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	appInfo.pEngineName = "reactor Engine";
 	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -147,7 +153,7 @@ void rDestroyEngine(rEngine* engineInst)
 		
 }
 
-bool retrieveDeviceCapabilities(VkPhysicalDevice physicalDevice, rWindow* dumbWindow, QueueFamilyIndices* indices)
+bool retrieveDeviceCapabilities(VkPhysicalDevice physicalDevice, QueueFamilyIndices* indices)
 {
 	uint32_t queueFamilyCount = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
@@ -162,34 +168,14 @@ bool retrieveDeviceCapabilities(VkPhysicalDevice physicalDevice, rWindow* dumbWi
 		}
 	}
 	if (indices->graphicsFamily == -1) return false;
-
-	for (u32 idx = 0; idx < queueFamilyCount; ++idx) {
-		const auto& queueFamily = queueFamilies[idx];
-		VkBool32 presentSupport = false;
-		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, idx, dumbWindow->surface, &presentSupport);
-		if (queueFamily.queueCount > 0 && presentSupport) {
-			indices->presentFamily = idx;
-			break;
-		}
-	}
 	
-	if (indices->presentFamily == -1) return false;
-	
+	indices->presentFamily = indices->graphicsFamily;
 	
 	return true;
 }
 
 void initWindow(rEngine* engine, rWindow* window)
 {
-	window->engine = engine;
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	//glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	//glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
-	//glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
-	window->glfwWindow = glfwCreateWindow(window->width, window->height, window->name, nullptr, nullptr);
-
-	VK_CHECK (glfwCreateWindowSurface(engine->instance, window->glfwWindow, nullptr, &window->surface));
-	engine->windows.push_back(window);
 }
 
 void createDevice(rEngine* engineInst) {
@@ -199,17 +185,13 @@ void createDevice(rEngine* engineInst) {
 	std::vector<VkPhysicalDevice> devices(deviceCount);
 	vkEnumeratePhysicalDevices(engineInst->instance, &deviceCount, devices.data());
 	
-	rWindow dumbWindow{ "dumb_window", 1, 1 };
-	
-	initWindow(engineInst, &dumbWindow);
 	for (const auto& device : devices) {
-		if (retrieveDeviceCapabilities(device, &dumbWindow, &engineInst->indices))
+		if (retrieveDeviceCapabilities(device, &engineInst->indices))
 		{
 			engineInst->physicalDevice = device;
 			break;
 		}
 	}
-	rDestroyWindow(&dumbWindow);
 
 	assert(engineInst->physicalDevice);
 
@@ -256,112 +238,6 @@ void createDevice(rEngine* engineInst) {
 	vkGetDeviceQueue(engineInst->device, engineInst->indices.presentFamily, 0, &engineInst->presentQueue);
 }
 
-void rCreateWindow(rEngine* engine, rWindow* window)
-{
-	initWindow(engine, window);
-	VkSurfaceCapabilitiesKHR capabilities;
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(engine->physicalDevice, window->surface, &capabilities);
-	u32 wantedImageCount = capabilities.minImageCount;
-	VkBool32 bSupported;
-	vkGetPhysicalDeviceSurfaceSupportKHR(engine->physicalDevice, engine->indices.presentFamily, window->surface, &bSupported);
-
-	u32 formatCount;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(engine->physicalDevice, window->surface, &formatCount, nullptr);
-	std::vector<VkSurfaceFormatKHR> formats(formatCount);
-	vkGetPhysicalDeviceSurfaceFormatsKHR(engine->physicalDevice, window->surface, &formatCount, formats.data());
-
-	VkSurfaceFormatKHR surfaceFormat = { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
-	/*
-	if (formats.size() == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
-		return { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
-	}*/
-	// let's just try different settings and explore
-
-
-	u32 presentModeCount;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(engine->physicalDevice, window->surface, &presentModeCount, nullptr);
-	std::vector<VkPresentModeKHR> presentModes(presentModeCount);
-	vkGetPhysicalDeviceSurfacePresentModesKHR(engine->physicalDevice, window->surface, &presentModeCount, presentModes.data());
-	VkPresentModeKHR bestMode = VK_PRESENT_MODE_FIFO_KHR;
-
-	for (const auto& availablePresentMode : presentModes) {
-		if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-			bestMode = availablePresentMode;
-		}
-		else if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
-			bestMode = availablePresentMode;
-		}
-	}
-
-	VkSwapchainCreateInfoKHR createInfo = {};
-	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	createInfo.surface = window->surface;
-	createInfo.imageExtent = capabilities.currentExtent;
-	createInfo.minImageCount = wantedImageCount;
-	createInfo.imageFormat = surfaceFormat.format;
-	createInfo.imageColorSpace = surfaceFormat.colorSpace;
-	createInfo.imageExtent = capabilities.currentExtent;
-	createInfo.imageArrayLayers = 1;
-	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	createInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	createInfo.presentMode = bestMode;
-	createInfo.clipped = VK_TRUE;
-	createInfo.oldSwapchain = VK_NULL_HANDLE;
-
-	VK_CHECK(vkCreateSwapchainKHR(engine->device, &createInfo, nullptr, &window->swapchain));
-
-	u32 imageCount = -1;
-	vkGetSwapchainImagesKHR(engine->device, window->swapchain, &imageCount, nullptr);
-	window->swapchainImages.resize(imageCount);
-	vkGetSwapchainImagesKHR(engine->device, window->swapchain, &imageCount, window->swapchainImages.data());
-
-	window->swapchainImageViews.resize(imageCount);
-	for (u32 idx = 0; idx < imageCount; ++idx)
-	{
-		VkImage image = window->swapchainImages[idx];
-		VkImageViewCreateInfo imageViewCI = {};
-		imageViewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		imageViewCI.image = window->swapchainImages[idx];
-		imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		imageViewCI.format = surfaceFormat.format;
-		imageViewCI.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		imageViewCI.subresourceRange.baseMipLevel = 0;
-		imageViewCI.subresourceRange.levelCount = 1;
-		imageViewCI.subresourceRange.baseArrayLayer = 0;
-		imageViewCI.subresourceRange.layerCount = 1;
-
-
-		VkImageView imageView;
-		VK_CHECK(vkCreateImageView(engine->device, &imageViewCI, nullptr, &imageView));
-
-		window->swapchainImageViews[idx] = imageView;
-	}
-
-	std::cout << "Hello";
-}
-
-void rDestroyWindow(rWindow* window)
-{
-//		for (auto imageView : swapChainImageViews) {
-//			vkDestroyImageView(device, imageView, nullptr);
-//		}
-	//vkDestroySwapchainKHR(device, swapChain, nullptr);
-	for (VkFramebuffer framebuffer : window->swapchainFramebuffers)
-	{
-		vkDestroyFramebuffer(window->engine->device, framebuffer, nullptr);
-	}
-	for (VkImageView imageView : window->swapchainImageViews)
-	{
-		vkDestroyImageView(window->engine->device, imageView, nullptr);
-	}
-	if (window->swapchain) vkDestroySwapchainKHR(window->engine->device, window->swapchain, nullptr);
-	vkDestroySurfaceKHR(window->engine->instance, window->surface, nullptr);
-	glfwDestroyWindow(window->glfwWindow);
-	auto& vec = window->engine->windows;
-	vec.erase(std::remove(vec.begin(), vec.end(), window), vec.end());
-}
 
 std::vector<char> loadFile(const std::string& filename)
 {
@@ -375,12 +251,11 @@ std::vector<char> loadFile(const std::string& filename)
 	return buffer;
 }
 
-void rCreatePipeline(rEngine* engine, rWindow* window, std::string vertPath, std::string fragPath)
+void rCreatePipeline(rEngine* engine, rWindow* window, std::string vertPath, std::string fragPath, VkRenderPass renderPass, VkPipeline* pipelineOut)
 {
 	// load shaders
 	auto vertShader = loadFile(vertPath);
 	auto fragShader = loadFile(fragPath);
-	
 
 	VkShaderModuleCreateInfo vertInfo = {};
 	vertInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -419,46 +294,6 @@ void rCreatePipeline(rEngine* engine, rWindow* window, std::string vertPath, std
 	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	inputAssembly.primitiveRestartEnable = VK_FALSE;
-	
-	
-	VkAttachmentDescription colorAttachment = {};
-	colorAttachment.format = VK_FORMAT_B8G8R8A8_UNORM;
-	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	
-	VkAttachmentReference colorAttachmentRef = {};
-	colorAttachmentRef.attachment = 0;
-	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	
-	VkSubpassDescription subpass = {};
-	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass.colorAttachmentCount = 1;
-	subpass.pColorAttachments = &colorAttachmentRef;
-	
-	VkSubpassDependency dependency = {};
-	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	dependency.dstSubpass = 0;
-	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.srcAccessMask = 0;
-	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	
-	VkRenderPassCreateInfo renderPassInfo = {};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	renderPassInfo.attachmentCount = 1;
-	renderPassInfo.pAttachments = &colorAttachment;
-	renderPassInfo.subpassCount = 1;
-	renderPassInfo.pSubpasses = &subpass;
-	renderPassInfo.dependencyCount = 1;
-	renderPassInfo.pDependencies = &dependency;
-	
-	VK_CHECK(vkCreateRenderPass(engine->device, &renderPassInfo, nullptr, &engine->renderPass));
-	
 	
 	VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
 	pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -529,82 +364,107 @@ void rCreatePipeline(rEngine* engine, rWindow* window, std::string vertPath, std
 	VK_CHECK(vkCreatePipelineLayout(engine->device, &pipelineLayoutInfo, nullptr, &pipelineLayout));
 	
 	pipelineCreateInfo.layout = pipelineLayout;
-	pipelineCreateInfo.renderPass = engine->renderPass;
+	pipelineCreateInfo.renderPass = renderPass;
 	pipelineCreateInfo.subpass = 0;
 	
-	VK_CHECK(vkCreateGraphicsPipelines(engine->device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &window->graphicsPipeline));
+	VK_CHECK(vkCreateGraphicsPipelines(engine->device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, pipelineOut));
 	
 	vkDestroyShaderModule(engine->device, vertModule, nullptr);
 	vkDestroyShaderModule(engine->device, fragModule, nullptr);
 }
 
-void rCreateFramebuffers(rEngine* engine, rWindow* window)
-{
-	window->swapchainFramebuffers.resize(window->swapchainImageViews.size());
-	
-	for (u32 idx = 0; idx < window->swapchainImageViews.size(); ++idx)
-	{
-		VkFramebufferCreateInfo framebufferInfo = {};
-		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = engine->renderPass;
-		framebufferInfo.attachmentCount = 1;
-		framebufferInfo.pAttachments = &window->swapchainImageViews[idx];
-		framebufferInfo.width = window->width;
-		framebufferInfo.height = window->height;
-		framebufferInfo.layers = 1;
-		
-		VkFramebuffer framebuffer;
-		VK_CHECK(vkCreateFramebuffer(engine->device, &framebufferInfo, nullptr, &framebuffer));
-		window->swapchainFramebuffers[idx] = framebuffer;
-	}
-	
-}
 
 void rCreateCommandPool(rEngine* engine, rWindow* window, VkCommandPool* commandPool)
 {
-	VkCommandPoolCreateInfo poolInfo = {};
-	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	poolInfo.queueFamilyIndex = engine->indices.graphicsFamily;
-	VK_CHECK(vkCreateCommandPool(engine->device, &poolInfo, nullptr, commandPool));
 	
-	engine->commandBuffers.resize(window->swapchainFramebuffers.size());
-	VkCommandBufferAllocateInfo allocInfo = {};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.commandPool = *commandPool;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandBufferCount = (u32)engine->commandBuffers.size();
-	VK_CHECK(vkAllocateCommandBuffers(engine->device, &allocInfo, engine->commandBuffers.data()));
 	
-	for (u32 idx = 0; idx < engine->commandBuffers.size(); ++idx	)
+	
+}
+
+bool rEngineShouldTick(rEngine* engine)
+{
+	if (engine->windows.size() > 0)
 	{
-		VkCommandBuffer buffer = engine->commandBuffers[idx];
-		VkCommandBufferBeginInfo beginInfo = {};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+		return true;
+	}
+	return false;
+}
+
+
+void rTickEngine(rEngine* engine)
+{
+	glfwPollEvents();
+	
+	
+	for (rWindow* window : engine->windows)
+	{
+		if (glfwWindowShouldClose(window->glfwWindow))
+		{
+			rDestroyWindow(window);
+			return;
+		}
+	}
+	u32 numWindows = u32(engine->windows.size());
+	
+	std::vector<u32> indices;
+	indices.reserve(numWindows);
+	std::vector<VkSwapchainKHR> swapchains;
+	swapchains.reserve(numWindows);
+	
+	std::vector<VkSemaphore> windowSemaphores;
+	windowSemaphores.reserve(numWindows);
+	
+	for (u32 idx = 0; idx < numWindows; ++idx)
+	{
+		rWindow* window = engine->windows[idx];
+		u32 imageIndex;
+		VkResult nextImageResult = vkAcquireNextImageKHR(engine->device, window->swapchain, -1, window->imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+		if (nextImageResult == VK_ERROR_OUT_OF_DATE_KHR)
+		{
+			std::cout << "vk out of date" << std::endl;
+			rWindowRefresh(window);
+			continue;
+		}
+		else if (nextImageResult == VK_SUBOPTIMAL_KHR)
+		{
+			std::cout << "vk suboptimal" << std::endl;
+			// it is still considered valid, so continue
+		}
 		
-		VK_CHECK(vkBeginCommandBuffer(buffer, &beginInfo));
+		// swapchains here, as window swapchain may change in rWindowRefresh
+		//swapchains[idx] = window->swapchain;
+		swapchains.push_back(window->swapchain);
+		indices.push_back(imageIndex);
+		windowSemaphores.push_back(window->renderFinishedSemaphore);
 		
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		VkPipelineStageFlags pipelineFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		submitInfo.waitSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = &window->imageAvailableSemaphore;
+		submitInfo.pWaitDstStageMask = &pipelineFlags;
 		
-		VkRenderPassBeginInfo renderPassInfo = {};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = engine->renderPass;
-		renderPassInfo.framebuffer = window->swapchainFramebuffers[idx];
-		renderPassInfo.renderArea.offset = { 0,0 };
-		renderPassInfo.renderArea.extent = { window->width, window->height };
-		VkClearValue clearValue = {};
-		clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &window->commandBuffers[imageIndex];
 		
-		renderPassInfo.clearValueCount = 1;
-		renderPassInfo.pClearValues = &clearValue;
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = &window->renderFinishedSemaphore;
 		
-		vkCmdBeginRenderPass(buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-		
-		vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, window->graphicsPipeline);
-		vkCmdDraw(buffer, 3, 1, 0, 0);
-		vkCmdEndRenderPass(buffer);
-		VK_CHECK(vkEndCommandBuffer(buffer));
+		VkResult submit = vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	}
+	if (swapchains.size() > 0)
+	{
+	VkPresentInfoKHR presentInfo = {};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.waitSemaphoreCount = u32(windowSemaphores.size());
+	presentInfo.pWaitSemaphores = windowSemaphores.data();
+	
+	presentInfo.swapchainCount = u32(swapchains.size());
+	presentInfo.pSwapchains = swapchains.data();
+	presentInfo.pImageIndices = indices.data();
+	
+	VkResult present = vkQueuePresentKHR(engine->presentQueue, &presentInfo);
 		
 	}
-	
 	
 }
