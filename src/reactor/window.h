@@ -9,6 +9,9 @@
 #include <vector>
 
 struct rEngine;
+struct rScene;
+struct rWindow;
+
 
 struct rWindow
 {
@@ -25,28 +28,24 @@ struct rWindow
 	
 	u32 wantedImageCount;
 	VkSwapchainKHR swapchain;
-	VkRenderPass renderPass;
 
 	std::vector<VkImage> swapchainImages;
 	std::vector<VkImageView> swapchainImageViews;
 	std::vector<VkFramebuffer> swapchainFramebuffers;
 	VkSemaphore renderFinishedSemaphore;
 	VkSemaphore imageAvailableSemaphore;
-	std::vector<VkCommandBuffer> commandBuffers;
 	
-	rWindow(string inName, u32 inWidth, u32 inHeight)
-		: name(inName)
-		, width(inWidth)
-		, height(inHeight)
-		, swapchain(VK_NULL_HANDLE)
-	{
-		
-	}
+	rScene* scene;
+	
+	rWindow(rEngine* inEngine, string inName, u32 inWidth, u32 inHeight);
+	VkCommandBuffer commandBuffer;
+	VkCommandPool commandPool;
+	u32 imageIndex;
 };
 
-void rCreateWindow(rEngine* engine, rWindow* window);
+void rCreateWindow(rWindow* window);
 void rDestroyWindow(rWindow* window);
-void rWindowRefresh(rWindow* window);
+void rWindowRecreateSwapChain(rWindow* window);
 
-void rWindowRender(rWindow* window);
+bool rWindowRender(rWindow* window);
 

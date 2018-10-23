@@ -3,6 +3,11 @@
 
 #include <assert.h>
 #include <string>
+#include <vector>
+#include <iosfwd>
+
+#include <fstream>
+
 
 #define VK_CHECK(op) assert(op == VK_SUCCESS)
 
@@ -20,8 +25,23 @@ typedef int64_t i64;
 
 typedef std::string string;
 
+template<typename T>
+using array = std::vector<T>;
+
 // I do this thinking in being able to easily change the math to use double
 // we'll have to see how it works.
 
 typedef float real;
 //typedef double real;
+
+static std::vector<char> loadFile(const std::string& filename)
+{
+	std::ifstream file(filename, std::ios::ate | std::ios::binary);
+	assert(file.is_open());
+	size_t filesize = (size_t)file.tellg();
+	std::vector<char> buffer(filesize);
+	file.seekg(0);
+	file.read(buffer.data(), filesize);
+	file.close();
+	return buffer;
+}

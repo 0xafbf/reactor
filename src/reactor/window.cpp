@@ -13,16 +13,17 @@
 #include <iostream>
 #include <iosfwd>
 #include <fstream>
+#include "scene.h"
 
 void glfwResizeCallback(GLFWwindow* glfwWindow, i32 width, i32 height)
 {
 	rWindow* window = (rWindow*) glfwGetWindowUserPointer(glfwWindow);
-	rWindowRefresh(window);
+	rWindowRecreateSwapChain(window);
 }
 
-void rCreateWindow(rEngine* engine, rWindow* window)
+void rCreateWindow(rWindow* window)
 {
-	window->engine = engine;
+	rEngine* engine = window->engine;
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	//glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	//glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
@@ -72,58 +73,31 @@ void rCreateWindow(rEngine* engine, rWindow* window)
 	}
 	window->presentMode = bestMode;
 
-	VkAttachmentDescription colorAttachment = {};
-	colorAttachment.format = VK_FORMAT_B8G8R8A8_UNORM;
-	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	
-	VkAttachmentReference colorAttachmentRef = {};
-	colorAttachmentRef.attachment = 0;
-	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	
-	VkSubpassDescription subpass = {};
-	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass.colorAttachmentCount = 1;
-	subpass.pColorAttachments = &colorAttachmentRef;
-	
-	VkSubpassDependency dependency = {};
-	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	dependency.dstSubpass = 0;
-	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.srcAccessMask = 0;
-	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	
-	VkRenderPassCreateInfo renderPassInfo = {};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	renderPassInfo.attachmentCount = 1;
-	renderPassInfo.pAttachments = &colorAttachment;
-	renderPassInfo.subpassCount = 1;
-	renderPassInfo.pSubpasses = &subpass;
-	renderPassInfo.dependencyCount = 1;
-	renderPassInfo.pDependencies = &dependency;
-	
-	VK_CHECK(vkCreateRenderPass(engine->device, &renderPassInfo, nullptr, &window->renderPass));
-	
-	rWindowRefresh(window);
+	rWindowRecreateSwapChain(window);
 	
 	VkSemaphoreCreateInfo semaphoreInfo = {};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 	
 	vkCreateSemaphore(engine->device, &semaphoreInfo, nullptr, &window->renderFinishedSemaphore);
 	vkCreateSemaphore(engine->device, &semaphoreInfo, nullptr, &window->imageAvailableSemaphore);
+		
+	VkCommandPoolCreateInfo poolInfo = {};
+	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	poolInfo.queueFamilyIndex = engine->indices.graphicsFamily;
+	VK_CHECK(vkCreateCommandPool(engine->device, &poolInfo, nullptr, &window->commandPool));
+	
+	VkCommandBufferAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.commandPool = window->commandPool;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandBufferCount = 1;
+	VK_CHECK(vkAllocateCommandBuffers(engine->device, &allocInfo, &window->commandBuffer));
+	
 }
 void rDestroyWindow(rWindow* window)
 {
-//		for (auto imageView : swapChainImageViews) {
-//			vkDestroyImageView(device, imageView, nullptr);
-//		}
-  	//vkDestroySwapchainKHR(device, swapChain, nullptr);
   	for (VkFramebuffer framebuffer : window->swapchainFramebuffers)
   	{
   		vkDestroyFramebuffer(window->engine->device, framebuffer, nullptr);
@@ -134,7 +108,6 @@ void rDestroyWindow(rWindow* window)
   	}
   	if (window->renderFinishedSemaphore) vkDestroySemaphore(window->engine->device, window->renderFinishedSemaphore, nullptr);
   	if (window->imageAvailableSemaphore) vkDestroySemaphore(window->engine->device, window->imageAvailableSemaphore, nullptr);
-	if (window->renderPass) vkDestroyRenderPass(window->engine->device, window->renderPass, nullptr);
   	if (window->swapchain) vkDestroySwapchainKHR(window->engine->device, window->swapchain, nullptr);
   	vkDestroySurfaceKHR(window->engine->instance, window->surface, nullptr);
   	glfwDestroyWindow(window->glfwWindow);
@@ -142,7 +115,7 @@ void rDestroyWindow(rWindow* window)
   	vec.erase(std::remove(vec.begin(), vec.end(), window), vec.end());
 }
 
-void rWindowRefresh(rWindow* window)
+void rWindowRecreateSwapChain(rWindow* window)
 {
 	rEngine* engine = window->engine;
 	
@@ -198,7 +171,7 @@ void rWindowRefresh(rWindow* window)
 
 		VkFramebufferCreateInfo framebufferInfo = {};
 		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = window->renderPass;
+		framebufferInfo.renderPass = engine->primitivesRenderPass;
 		framebufferInfo.attachmentCount = 1;
 		framebufferInfo.pAttachments = &window->swapchainImageViews[idx];
 		framebufferInfo.width = window->width;
@@ -209,7 +182,6 @@ void rWindowRefresh(rWindow* window)
 	}
 	
 	
-	vkDestroySwapchainKHR(window->engine->device, window->swapchain, nullptr);
 	window->swapchain = newSwapchain;
 	
 	VkSemaphoreCreateInfo semaphoreInfo = {};
@@ -219,7 +191,91 @@ void rWindowRefresh(rWindow* window)
 
 }
 
-void rWindowRender(rWindow* window)
+bool rWindowRender(rWindow* window)
 {
+	VkResult nextImageResult = vkAcquireNextImageKHR(window->engine->device, window->swapchain, -1, window->imageAvailableSemaphore, VK_NULL_HANDLE, &window->imageIndex);
+	if (nextImageResult == VK_ERROR_OUT_OF_DATE_KHR)
+	{
+		std::cout << "vk out of date" << std::endl;
+		//rWindowRefresh(window);
+		//continue;
+		return false;
+	}
+	else if (nextImageResult == VK_SUBOPTIMAL_KHR)
+	{
+		std::cout << "vk suboptimal" << std::endl;
+		// it is still considered valid, so continue
+	}
+	VkCommandBufferBeginInfo beginInfo = {};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 	
+	VkCommandBuffer commandBuffer = window->commandBuffer;
+	VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
+	
+	
+	VkRenderPassBeginInfo renderPassInfo = {};
+	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	renderPassInfo.renderPass = window->engine->primitivesRenderPass;
+	renderPassInfo.framebuffer = window->swapchainFramebuffers[window->imageIndex];
+	renderPassInfo.renderArea.offset = { 0,0 };
+	renderPassInfo.renderArea.extent = { window->width, window->height };
+	VkClearValue clearValue = {};
+	clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
+	
+	renderPassInfo.clearValueCount = 1;
+	renderPassInfo.pClearValues = &clearValue;
+	
+	vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	
+
+	// Update dynamic viewport state
+	VkViewport viewport = {};
+	viewport.height = float(window->height);
+	viewport.width = float(window->width);
+	viewport.minDepth = (float) 0.0f;
+	viewport.maxDepth = (float) 1.0f;
+	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+	// Update dynamic scissor state
+	VkRect2D scissor = {};
+	scissor.extent.width = window->width;
+	scissor.extent.height = window->height;
+	scissor.offset.x = 0;
+	scissor.offset.y = 0;
+	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+	
+	if (window->scene)
+	{
+		rSceneDraw(window->scene, commandBuffer);
+	}
+	vkCmdEndRenderPass(commandBuffer);
+	VK_CHECK(vkEndCommandBuffer(commandBuffer));
+
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	VkPipelineStageFlags pipelineFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	submitInfo.waitSemaphoreCount = 1;
+	submitInfo.pWaitSemaphores = &window->imageAvailableSemaphore;
+	submitInfo.pWaitDstStageMask = &pipelineFlags;
+
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	submitInfo.signalSemaphoreCount = 1;
+	submitInfo.pSignalSemaphores = &window->renderFinishedSemaphore;
+
+	VkResult submit = vkQueueSubmit(window->engine->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	
+	return true;
+}
+
+rWindow::rWindow(rEngine* inEngine, string inName, u32 inWidth, u32 inHeight) : engine(inEngine)
+, name(inName)
+, width(inWidth)
+, height(inHeight)
+, swapchain(VK_NULL_HANDLE)
+, scene(nullptr)
+{
+	rCreateWindow(this);
 }
