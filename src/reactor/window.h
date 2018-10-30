@@ -39,13 +39,13 @@ struct rWindow
 	
 	rWindow(rEngine* inEngine, string inName, u32 inWidth, u32 inHeight);
 	VkCommandBuffer commandBuffer;
-	VkCommandPool commandPool;
 	u32 imageIndex;
 };
 
 void rCreateWindow(rWindow* window);
 void rDestroyWindow(rWindow* window);
-void rWindowRecreateSwapChain(rWindow* window);
+void rWindowCreateSwapChain(rWindow* window);
 
+void rWindowDestroySwapChain(rWindow* window);
 bool rWindowRender(rWindow* window);
 

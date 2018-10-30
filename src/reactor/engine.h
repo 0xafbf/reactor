@@ -31,9 +31,11 @@ struct rEngine
 	std::vector<rWindow*> windows;
 	
 	VkRenderPass primitivesRenderPass;
+	VkCommandPool commandPool;
 	
 	rEngine(string inName);
 	~rEngine();
+	VkDescriptorPool descriptorPool;
 };
 
 /**
@@ -41,8 +43,6 @@ struct rEngine
  */
 void rEngineStart(rEngine* engineInst);
 void rEngineDestroy(rEngine* engineInst);
-
-void rCreateCommandPool(rEngine* engine, rWindow* window, VkCommandPool* commandPool);
 
 bool rEngineShouldTick(rEngine* engine);
 void rEngineTick(rEngine* engine);

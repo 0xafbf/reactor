@@ -11,9 +11,12 @@
 
 #include "vulkan/vulkan.h"
 #include "GLFW/glfw3.h"
+#include "imgui.h"
 
 #include "types.h"
 #include "window.h"
+#include "examples/imgui_impl_vulkan.h"
+#include "../../deps/imgui/examples/imgui_impl_glfw.h"
 
 #ifdef NDEBUG
 constexpr bool enableValidationLayers = false;
@@ -21,7 +24,7 @@ constexpr bool enableValidationLayers = false;
 constexpr bool enableValidationLayers = true;
 #endif
 
-#define DEBUG_VK_CALLBACK
+//#define DEBUG_VK_CALLBACK
 
 std::vector<const char*> getValidationLayers()
 {
@@ -34,7 +37,7 @@ std::vector<const char*> getValidationLayers()
 	
 	uint32_t layerCount;
 	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-	std::vector<VkLayerProperties> availableLayers(layerCount);
+	array<VkLayerProperties> availableLayers(layerCount);
 	vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
 	for (const char* layerName : validationLayers) {
@@ -97,7 +100,7 @@ void setupDebugCallback(VkInstance instance) {
 void createDevice(rEngine* engineInst);
 void createRenderPasses(rEngine* engine);
 
-void rEngineStart(rEngine* engineInst)
+void rEngineStart(rEngine* engine)
 {
 	// we need to do this first as getRequiredExtensions relies on it
 	glfwInit();
@@ -105,7 +108,7 @@ void rEngineStart(rEngine* engineInst)
 	// Set up the vulkan instance
 	VkApplicationInfo appInfo = {};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pApplicationName = engineInst->name.c_str();
+	appInfo.pApplicationName = engine->name.c_str();
 	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	appInfo.pEngineName = "reactor Engine";
 	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -124,14 +127,85 @@ void rEngineStart(rEngine* engineInst)
 	createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
 	createInfo.ppEnabledLayerNames = validationLayers.data();
 
-	VK_CHECK(vkCreateInstance(&createInfo, nullptr, &engineInst->instance));
+	VK_CHECK(vkCreateInstance(&createInfo, nullptr, &engine->instance));
 
 	//////
-	setupDebugCallback(engineInst->instance);	
+	setupDebugCallback(engine->instance);	
 	
-	createDevice(engineInst);
-	createRenderPasses(engineInst);
+	createDevice(engine);
+	createRenderPasses(engine);
 	
+	VkDescriptorPoolSize pool_sizes[] =
+	{
+		{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+	};
+	VkDescriptorPoolCreateInfo pool_info = {};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
+	pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+	pool_info.pPoolSizes = pool_sizes;
+	VK_CHECK(vkCreateDescriptorPool(engine->device, &pool_info, nullptr, &engine->descriptorPool));
+	
+	VkCommandPoolCreateInfo poolInfo = {};
+	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	poolInfo.queueFamilyIndex = engine->indices.graphicsFamily;
+	VK_CHECK(vkCreateCommandPool(engine->device, &poolInfo, nullptr, &engine->commandPool));
+	
+	ImGui_ImplVulkan_InitInfo init_info = {};
+	init_info.Instance = engine->instance;
+	init_info.PhysicalDevice = engine->physicalDevice;
+	init_info.Device = engine->device;
+	init_info.QueueFamily = engine->indices.graphicsFamily;
+	init_info.Queue = engine->graphicsQueue;
+	//init_info.PipelineCache = g_PipelineCache;
+	init_info.DescriptorPool = engine->descriptorPool;
+	//init_info.Allocator = g_Allocator;
+	//init_info.CheckVkResultFn = check_vk_result;
+	ImGui_ImplVulkan_Init(&init_info, engine->primitivesRenderPass);
+	
+	ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+    // Upload Fonts
+    {
+        // Use any command queue
+        VkCommandPool command_pool =  engine->commandPool;
+		
+		VkCommandBufferAllocateInfo bufferInfo = {};
+		bufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		bufferInfo.commandBufferCount = 1;
+		bufferInfo.commandPool = command_pool;
+		VkCommandBuffer command_buffer;
+		vkAllocateCommandBuffers(engine->device, &bufferInfo, &command_buffer);
+
+		VK_CHECK(vkResetCommandPool(engine->device, command_pool, 0));
+        VkCommandBufferBeginInfo begin_info = {};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+		VK_CHECK(vkBeginCommandBuffer(command_buffer, &begin_info));
+
+        ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+
+        VkSubmitInfo end_info = {};
+        end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        end_info.commandBufferCount = 1;
+        end_info.pCommandBuffers = &command_buffer;
+		VK_CHECK(vkEndCommandBuffer(command_buffer));
+		VK_CHECK(vkQueueSubmit(engine->graphicsQueue, 1, &end_info, VK_NULL_HANDLE));
+		VK_CHECK(vkDeviceWaitIdle(engine->device));
+        ImGui_ImplVulkan_InvalidateFontUploadObjects();
+    }
 }
 
 void rEngineDestroy(rEngine* engineInst)
@@ -296,6 +370,32 @@ bool rEngineShouldTick(rEngine* engine)
 
 void rEngineTick(rEngine* engine)
 {
+	
+	// this should be handled better for each window I guess.
+	ImGui_ImplGlfw_NewFrame();
+	
+	ImGui::NewFrame();
+	
+	static float f = 5.0;
+	
+	ImGui::Text("Hello, world");
+	if (ImGui::Button("Discard"))
+	{
+		std::cout << "arst";
+	}
+	ImGui::SliderFloat("Intensity", &f, 0.0, 10.0, "%.3f tau", 2.0);
+	
+	
+	
+	bool ShowWindow = true;
+	ImGui::ShowDemoWindow(&ShowWindow);
+	ImGui::Render();
+	
+	
+	
+	// from now on it is just draw
+	
+	
 	vkQueueWaitIdle(engine->presentQueue);
 	for (rWindow* window : engine->windows)
 	{

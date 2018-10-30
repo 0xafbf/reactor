@@ -13,16 +13,27 @@
 #include <iostream>
 #include <iosfwd>
 #include <fstream>
+#include <imgui.h>
+
 #include "scene.h"
+#include "examples/imgui_impl_glfw.h"
+#include "examples/imgui_impl_vulkan.h"
 
 void glfwResizeCallback(GLFWwindow* glfwWindow, i32 width, i32 height)
 {
 	rWindow* window = (rWindow*) glfwGetWindowUserPointer(glfwWindow);
-	rWindowRecreateSwapChain(window);
+	
+	vkDeviceWaitIdle(window->engine->device);
+	rWindowDestroySwapChain(window);
+	rWindowCreateSwapChain(window);
+	
+	// this would be nice, but it requires more setup
+	// rWindowRender(window);
 }
 
 void rCreateWindow(rWindow* window)
 {
+	
 	rEngine* engine = window->engine;
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	//glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
@@ -74,48 +85,37 @@ void rCreateWindow(rWindow* window)
 	window->presentMode = bestMode;
 
 	
-	rWindowRecreateSwapChain(window);
+	rWindowCreateSwapChain(window);
 	
 	VkSemaphoreCreateInfo semaphoreInfo = {};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 	
 	vkCreateSemaphore(engine->device, &semaphoreInfo, nullptr, &window->renderFinishedSemaphore);
 	vkCreateSemaphore(engine->device, &semaphoreInfo, nullptr, &window->imageAvailableSemaphore);
-		
-	VkCommandPoolCreateInfo poolInfo = {};
-	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	poolInfo.queueFamilyIndex = engine->indices.graphicsFamily;
-	VK_CHECK(vkCreateCommandPool(engine->device, &poolInfo, nullptr, &window->commandPool));
 	
 	VkCommandBufferAllocateInfo allocInfo = {};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.commandPool = window->commandPool;
+	allocInfo.commandPool = engine->commandPool;
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	allocInfo.commandBufferCount = 1;
 	VK_CHECK(vkAllocateCommandBuffers(engine->device, &allocInfo, &window->commandBuffer));
 	
+	ImGui_ImplGlfw_InitForVulkan(window->glfwWindow, true);
+	
+	
 }
 void rDestroyWindow(rWindow* window)
 {
-  	for (VkFramebuffer framebuffer : window->swapchainFramebuffers)
-  	{
-  		vkDestroyFramebuffer(window->engine->device, framebuffer, nullptr);
-  	}
-  	for (VkImageView imageView : window->swapchainImageViews)
-  	{
-  		vkDestroyImageView(window->engine->device, imageView, nullptr);
-  	}
+	rWindowDestroySwapChain(window);
   	if (window->renderFinishedSemaphore) vkDestroySemaphore(window->engine->device, window->renderFinishedSemaphore, nullptr);
   	if (window->imageAvailableSemaphore) vkDestroySemaphore(window->engine->device, window->imageAvailableSemaphore, nullptr);
-  	if (window->swapchain) vkDestroySwapchainKHR(window->engine->device, window->swapchain, nullptr);
   	vkDestroySurfaceKHR(window->engine->instance, window->surface, nullptr);
   	glfwDestroyWindow(window->glfwWindow);
   	auto& vec = window->engine->windows;
   	vec.erase(std::remove(vec.begin(), vec.end(), window), vec.end());
 }
 
-void rWindowRecreateSwapChain(rWindow* window)
+void rWindowCreateSwapChain(rWindow* window)
 {
 	rEngine* engine = window->engine;
 	
@@ -124,8 +124,6 @@ void rWindowRecreateSwapChain(rWindow* window)
 
 	window->width = capabilities.currentExtent.width;
 	window->height = capabilities.currentExtent.height;
-	
-	VkSwapchainKHR newSwapchain;
 	
 	VkSwapchainCreateInfoKHR createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -142,14 +140,14 @@ void rWindowRecreateSwapChain(rWindow* window)
 	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 	createInfo.presentMode = window->presentMode;
 	createInfo.clipped = VK_TRUE;
-	createInfo.oldSwapchain = window->swapchain;;
+	createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-	VK_CHECK(vkCreateSwapchainKHR(engine->device, &createInfo, nullptr, &newSwapchain));
+	VK_CHECK(vkCreateSwapchainKHR(engine->device, &createInfo, nullptr, &window->swapchain));
 	
 	u32 imageCount = -1;
-	vkGetSwapchainImagesKHR(engine->device, newSwapchain, &imageCount, nullptr);
+	vkGetSwapchainImagesKHR(engine->device, window->swapchain, &imageCount, nullptr);
 	window->swapchainImages.resize(imageCount);
-	vkGetSwapchainImagesKHR(engine->device, newSwapchain, &imageCount, window->swapchainImages.data());
+	vkGetSwapchainImagesKHR(engine->device, window->swapchain, &imageCount, window->swapchainImages.data());
 	
 	window->swapchainImageViews.resize(imageCount);
 	window->swapchainFramebuffers.resize(imageCount);
@@ -182,13 +180,23 @@ void rWindowRecreateSwapChain(rWindow* window)
 	}
 	
 	
-	window->swapchain = newSwapchain;
-	
-	VkSemaphoreCreateInfo semaphoreInfo = {};
-	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	
-	//vkCreateSemaphore(engine->device, &semaphoreInfo, nullptr, &window->imageAvailableSemaphore);
+}
 
+void rWindowDestroySwapChain(rWindow* window)
+{
+	VkDevice device = window->engine->device;
+
+	vkDestroySwapchainKHR(device, window->swapchain, nullptr);
+
+	for (VkImageView imageView : window->swapchainImageViews)
+	{
+		vkDestroyImageView(device, imageView, nullptr);
+	}
+	
+	for (VkFramebuffer framebuffer : window->swapchainFramebuffers)
+	{
+		vkDestroyFramebuffer(device, framebuffer, nullptr);
+	}
 }
 
 bool rWindowRender(rWindow* window)
@@ -248,6 +256,8 @@ bool rWindowRender(rWindow* window)
 	if (window->scene)
 	{
 		rSceneDraw(window->scene, commandBuffer);
+		
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
 	}
 	vkCmdEndRenderPass(commandBuffer);
 	VK_CHECK(vkEndCommandBuffer(commandBuffer));
