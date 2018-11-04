@@ -45,5 +45,6 @@ void rEngineStart(rEngine* engineInst);
 void rEngineDestroy(rEngine* engineInst);
 
 bool rEngineShouldTick(rEngine* engine);
-void rEngineTick(rEngine* engine);
+void rEngineStartFrame(rEngine* engine);
+void rEngineEndFrame(rEngine* engine);
 void rEngineMainLoop(rEngine* engine);

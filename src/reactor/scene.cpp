@@ -1,12 +1,18 @@
 #include "scene.h"
 #include "engine.h"
 
-
-
-void rPrimitiveDraw(rPrimitive* primitive, VkCommandBuffer buffer)
+void rPrimitiveDraw(rPrimitive* primitive, VkCommandBuffer commandBuffer)
 {
-	vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, primitive->pipeline);
-	vkCmdDraw(buffer, 3, 1, 0, 0);
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, primitive->pipeline);
+	
+	
+	
+	
+	
+	VkDeviceSize offsets[] = { 0 };
+	
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, primitive->vertexBuffers.data(), offsets);
+	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 }
 
 void rSceneDraw(rScene* scene, VkCommandBuffer buffer)
@@ -51,10 +57,32 @@ rPrimitive::rPrimitive(rEngine* inEngine, string inVertPath, string inFragPath) 
 
 	VkPipelineShaderStageCreateInfo shaderStages[] = { vertStageInfo, fragStageInfo };
 
+	VkVertexInputBindingDescription bindingDescription = {};
+	bindingDescription.binding = 0;
+	bindingDescription.stride = sizeof(vert_data);
+	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	VkVertexInputAttributeDescription attributeDescription = {};
+	attributeDescription.binding = 0;
+	attributeDescription.location = 0;
+	attributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescription.offset = offsetof(vert_data, pos);
+
+	VkVertexInputAttributeDescription attributeDescription2 = {};
+	attributeDescription2.binding = 0;
+	attributeDescription2.location = 1;
+	attributeDescription2.format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescription2.offset = offsetof(vert_data, color);
+
+	array<VkVertexInputAttributeDescription> attrDescriptions = { attributeDescription, attributeDescription2 };
+
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 0;
-	vertexInputInfo.vertexAttributeDescriptionCount = 0;
+
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputInfo.pVertexAttributeDescriptions = attrDescriptions.data();
+	vertexInputInfo.vertexAttributeDescriptionCount = 2;
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
 	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;

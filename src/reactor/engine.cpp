@@ -352,8 +352,6 @@ void createRenderPasses(rEngine* engine)
 	renderPassInfo.pDependencies = &dependency;
 	
 	VK_CHECK(vkCreateRenderPass(engine->device, &renderPassInfo, nullptr, &engine->primitivesRenderPass));
-	
-		
 }
 
 
@@ -368,33 +366,18 @@ bool rEngineShouldTick(rEngine* engine)
 }
 
 
-void rEngineTick(rEngine* engine)
+void rEngineStartFrame(rEngine* engine)
 {
-	
+	glfwPollEvents();
 	// this should be handled better for each window I guess.
 	ImGui_ImplGlfw_NewFrame();
-	
+
 	ImGui::NewFrame();
-	
-	static float f = 5.0;
-	
-	ImGui::Text("Hello, world");
-	if (ImGui::Button("Discard"))
-	{
-		std::cout << "arst";
-	}
-	ImGui::SliderFloat("Intensity", &f, 0.0, 10.0, "%.3f tau", 2.0);
-	
-	
-	
-	bool ShowWindow = true;
-	ImGui::ShowDemoWindow(&ShowWindow);
+}
+
+void rEngineEndFrame(rEngine* engine)
+{
 	ImGui::Render();
-	
-	
-	
-	// from now on it is just draw
-	
 	
 	vkQueueWaitIdle(engine->presentQueue);
 	for (rWindow* window : engine->windows)
@@ -443,11 +426,10 @@ void rEngineTick(rEngine* engine)
 
 void rEngineMainLoop(rEngine* engine)
 {
-
 	while (rEngineShouldTick(engine))
 	{
-		glfwPollEvents();
-		rEngineTick(engine);
+		rEngineStartFrame(engine);
+		rEngineEndFrame(engine);
 	}
 }
 

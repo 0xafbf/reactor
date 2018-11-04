@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include "vulkan/vulkan_core.h"
+#include "rmath.h"
 
 struct rEngine;
 
@@ -19,6 +20,8 @@ struct rPrimitive
 	
 	VkPipeline pipeline;
 	
+	array<VkBuffer> vertexBuffers;
+	
 	rPrimitive(rEngine* inEngine, string inVertPath, string inFragPath);
 	~rPrimitive();
 };
@@ -26,6 +29,11 @@ struct rPrimitive
 void rPrimitiveDraw(rPrimitive* primitive, VkCommandBuffer buffer);
 
 
+struct vert_data
+{
+	vec3 pos;
+	vec3 color;
+};
 
 struct rScene
 {
