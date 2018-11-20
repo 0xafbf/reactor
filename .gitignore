@@ -1,1 +1,10 @@
 build/
+reactor.sln
+reactor.vcxproj
+reactor.vcxproj.*
+obj/
+shaders/*.spv
+imgui.ini
+shaders/bin/
+shaders/docs/
+bin/
