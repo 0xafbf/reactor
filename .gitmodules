@@ -4,3 +4,6 @@
 [submodule "deps/imgui"]
 	path = deps/imgui
 	url = git@github.com:ocornut/imgui.git
+[submodule "deps/tinyobjloader"]
+	path = deps/tinyobjloader
+	url = git@github.com:syoyo/tinyobjloader.git
