@@ -1,7 +1,7 @@
-[submodule "glfw"]
+[submodule "deps/glfw"]
 	path = deps/glfw
 	url = https://github.com/glfw/glfw
-[submodule "imgui"]
+[submodule "deps/imgui"]
 	path = deps/imgui
 	url = git@github.com:ocornut/imgui.git
 [submodule "deps/assimp"]
