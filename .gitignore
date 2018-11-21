@@ -8,3 +8,5 @@ imgui.ini
 shaders/bin/
 shaders/docs/
 bin/
+Makefile
+reactor.make

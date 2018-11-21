@@ -9,7 +9,7 @@ project "reactor"
 	files { "src/**.h", "src/**.cpp" }
 	includedirs { "src/reactor" }
 
-	links { "$(VULKAN_SDK)/lib/vulkan-1.lib" }
+	links { "$(VULKAN_SDK)/lib/vulkan" }
 	includedirs { "$(VULKAN_SDK)/include" }
 
 	files { "deps/imgui/*.h", "deps/imgui/*.cpp" }
@@ -20,7 +20,7 @@ project "reactor"
 	includedirs { "deps/tinyobjloader" }
 
 	-- files { "deps/glfw/"}
-	links { "deps/glfw/lib/glfw3" }
+	links { "glfw" }
 	includedirs { "deps/glfw/include" }
 	
 	files { "deps/SPIRV-Reflect/spirv_reflect.*" }
@@ -49,8 +49,8 @@ project "reactor"
 	filter "files:shaders/**.slang"
 		buildmessage "Compiling %{file.relpath}"
 		buildcommands {
-			"%{wks.location}/shaders/bin/slangc.exe %{file.path} -entry vert -o %{wks.location}shaders/%{file.basename}.vert.spv",
-			"%{wks.location}/shaders/bin/slangc.exe %{file.path} -entry frag -o %{wks.location}shaders/%{file.basename}.frag.spv"
+			"%{wks.location}/shaders/bin/slangc %{file.path} -entry vert -o %{wks.location}shaders/%{file.basename}.vert.spv",
+			"%{wks.location}/shaders/bin/slangc %{file.path} -entry frag -o %{wks.location}shaders/%{file.basename}.frag.spv"
 		}
 		buildoutputs {
 			"%{wks.location}shaders/%{file.basename}.frag.spv",
