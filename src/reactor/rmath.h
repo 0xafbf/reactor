@@ -21,3 +21,28 @@ struct vector3
 
 
 typedef vector3 vec3;
+
+struct mat4
+{
+	float m[16];
+
+	mat4() {}
+	mat4(float scale = 0) {
+		let size = sizeof(float) * 16;
+		memset(m, 0, size);
+		m[0] = m[5] = m[10] = m[15] = scale;
+	}
+	
+	float& operator[](u32 idx)
+	{
+		return m[idx];
+	}
+};
+
+
+template <class T>
+T min(T a, T b)
+{
+	if (a < b) return a;
+	return b;
+}

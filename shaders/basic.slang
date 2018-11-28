@@ -17,7 +17,7 @@ float4 vert(Vertex inVert) : SV_Position
 }
 
 [shader("fragment")]
-float4 frag(float4 inColor) : SV_Target
+float4 frag() : SV_Target
 {
 	return float4(1.0f);
 }

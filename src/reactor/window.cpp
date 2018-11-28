@@ -107,12 +107,12 @@ void rCreateWindow(rWindow* window)
 void rDestroyWindow(rWindow* window)
 {
 	rWindowDestroySwapChain(window);
-  	if (window->renderFinishedSemaphore) vkDestroySemaphore(window->engine->device, window->renderFinishedSemaphore, nullptr);
-  	if (window->imageAvailableSemaphore) vkDestroySemaphore(window->engine->device, window->imageAvailableSemaphore, nullptr);
-  	vkDestroySurfaceKHR(window->engine->instance, window->surface, nullptr);
-  	glfwDestroyWindow(window->glfwWindow);
-  	auto& vec = window->engine->windows;
-  	vec.erase(std::remove(vec.begin(), vec.end(), window), vec.end());
+	if (window->renderFinishedSemaphore) vkDestroySemaphore(window->engine->device, window->renderFinishedSemaphore, nullptr);
+	if (window->imageAvailableSemaphore) vkDestroySemaphore(window->engine->device, window->imageAvailableSemaphore, nullptr);
+	vkDestroySurfaceKHR(window->engine->instance, window->surface, nullptr);
+	glfwDestroyWindow(window->glfwWindow);
+	auto& vec = window->engine->windows;
+	vec.erase(std::remove(vec.begin(), vec.end(), window), vec.end());
 }
 
 void rWindowCreateSwapChain(rWindow* window)

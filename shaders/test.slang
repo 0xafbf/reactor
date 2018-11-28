@@ -1,24 +1,17 @@
 // shaders.slang
 
-float2 positions[3] =
-{ 
-    {0.0, -0.5},
-    {0.5, 0.5},
-    {-0.5, 0.5}
-};
-
 [shader("vertex")]
-void vertexMain(
+void vert(
     uint InIndex : INDEX,
     out float2 OutPosition : POSITION
     )
 {
-    OutPosition = positions[InIndex];
+    OutPosition = float2(0.0, 0.0);
 }
 
 // Fragment Shader
 [shader("fragment")]
-void fragmentMain(
+void frag(
     in float2 Position : POSITION,
     out float4 OutColor : SV_Target0
     )
@@ -28,4 +21,4 @@ void fragmentMain(
 
 
 // compile with:
-// .\bin\windows-x64\release\slangc.exe .\test.slang -profile ps_5_0 -entry fragmentMain -o test-frag.glsl
+// slangc.exe .\test.slang -profile ps_5_0 -entry fragmentMain -o test-frag.glsl

@@ -7,3 +7,6 @@
 [submodule "deps/tinyobjloader"]
 	path = deps/tinyobjloader
 	url = git@github.com:syoyo/tinyobjloader.git
+[submodule "deps/SPIRV-Reflect"]
+	path = deps/SPIRV-Reflect
+	url = git@github.com:chaoticbob/SPIRV-Reflect.git

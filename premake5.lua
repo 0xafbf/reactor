@@ -1,15 +1,17 @@
 workspace "reactor"
 	configurations { "Debug", "Work", "Release" }
+	
+	files { "premake5.lua" }
 
+	
 project "reactor"
 	kind "ConsoleApp"
 	language "C++"
-	targetdir "bin"
 
 	files { "src/**.h", "src/**.cpp" }
 	includedirs { "src/reactor" }
 
-	links { "$(VULKAN_SDK)/lib/vulkan" }
+	links { "$(VULKAN_SDK)/lib/vulkan-1" }
 	includedirs { "$(VULKAN_SDK)/include" }
 
 	files { "deps/imgui/*.h", "deps/imgui/*.cpp" }
@@ -20,8 +22,9 @@ project "reactor"
 	includedirs { "deps/tinyobjloader" }
 
 	-- files { "deps/glfw/"}
-	links { "glfw" }
-	includedirs { "deps/glfw/include" }
+	-- links {"glfw"}
+	includedirs { "deps/glfw/include"}
+	links {"deps/glfw/glfw3"}
 	
 	files { "deps/SPIRV-Reflect/spirv_reflect.*" }
 	includedirs { "deps/SPIRV-Reflect" }
@@ -44,8 +47,9 @@ project "reactor"
 	filter "system:windows"
 		defines { "WIN32" }
 		defines { "_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1"}
+		systemversion "latest"
 
-	files {"shaders/**.slang" }
+	-- files {"shaders/**.slang" }
 	filter "files:shaders/**.slang"
 		buildmessage "Compiling %{file.relpath}"
 		buildcommands {

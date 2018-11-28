@@ -10,3 +10,6 @@ shaders/docs/
 bin/
 Makefile
 reactor.make
+
+*~
+.vs/

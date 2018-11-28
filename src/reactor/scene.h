@@ -6,7 +6,7 @@
 
 struct rEngine;
 
-struct rPrimitive
+struct rGraphicsPipeline
 {
 	string vertPath;
 	string fragPath;
@@ -20,20 +20,26 @@ struct rPrimitive
 	
 	VkPipeline pipeline;
 	
-	array<VkBuffer> vertexBuffers;
+	VkDescriptorSetLayout descriptorSetLayout;
+	VkPipelineLayout layout;
+	array<VkDescriptorSet> descriptorSets;
+
 	
-	rPrimitive(rEngine* inEngine, string inVertPath, string inFragPath);
-	~rPrimitive();
+	rGraphicsPipeline(rEngine* inEngine, string inVertPath, string inFragPath);
+	~rGraphicsPipeline();
 };
 
-void rPrimitiveDraw(rPrimitive* primitive, VkCommandBuffer buffer);
+struct rPrimitive {
+	u32 indexCount;
+	VkBuffer indexBuffer;
+	array<VkBuffer> vertexBuffers;
+	array<VkBuffer> uniformBuffers;
 
-
-struct vert_data
-{
-	vec3 pos;
-	vec3 color;
+	rGraphicsPipeline* pipeline;
 };
+
+void rPrimitiveDraw(rPrimitive* primitive, rGraphicsPipeline* pipeline, VkCommandBuffer buffer);
+
 
 struct rScene
 {
