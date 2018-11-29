@@ -13,3 +13,5 @@ reactor.make
 
 *~
 .vs/
+*.swo
+*.swp

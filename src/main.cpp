@@ -2,130 +2,8 @@
 #include <iostream>
 #include "reactor.h"
 
-#include "tiny_obj_loader.h"
 #include <stdlib.h>
 
-struct rBuffer {
-	u32 size;
-	VkBufferUsageFlags usage;
-	VkSharingMode sharingMode;
-
-	rEngine* engine;
-	VkBuffer buffer;
-	VkDeviceMemory memory;
-
-	rBuffer() {}
-
-	rBuffer(rEngine* inEngine, u32 inSize, VkBufferUsageFlags inUsage, VkSharingMode inSharingMode)
-	: size(inSize), usage(inUsage), sharingMode(inSharingMode)
-	, engine(inEngine)	
-	{
-	
-		VkBufferCreateInfo bufferInfo = {};
-		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		bufferInfo.usage = usage;
-		bufferInfo.sharingMode = sharingMode;
-		bufferInfo.size = size;
-		
-		VK_CHECK(vkCreateBuffer(engine->device, &bufferInfo, nullptr, &buffer));
-	
-		VkMemoryRequirements memRequirements;
-		vkGetBufferMemoryRequirements(engine->device, buffer, &memRequirements);
-		
-		VkPhysicalDeviceMemoryProperties memProps;
-		vkGetPhysicalDeviceMemoryProperties(engine->physicalDevice, &memProps);
-		u32 mem_idx = -1;
-		for (u32 idx = 0; idx < memProps.memoryTypeCount; ++idx)
-		{
-			VkMemoryPropertyFlags memFlags = memProps.memoryTypes[idx].propertyFlags;
-			if (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT && memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-			{
-				mem_idx = idx;
-				break;
-			}
-		}
-		
-		VkMemoryAllocateInfo memInfo = {};
-		memInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		memInfo.allocationSize = memRequirements.size;
-		memInfo.memoryTypeIndex = mem_idx;
-		
-		VK_CHECK(vkAllocateMemory(engine->device, &memInfo, nullptr, &memory));
-		
-		VK_CHECK(vkBindBufferMemory(engine->device, buffer, memory, 0));
-	}
-};
-
-void rBufferSetMemory(const rBuffer* buffer, u32 inSize, void* data)
-{
-	assert(inSize <= buffer->size);	
-	u32 size = min(buffer->size, inSize);
-	void* vkData;
-	vkMapMemory(buffer->engine->device, buffer->memory, 0, size, 0, &vkData);
-	memcpy(vkData, data, size);
-	vkUnmapMemory(buffer->engine->device, buffer->memory);
-}
-
-
-struct rGeometry {
-
-	rEngine* engine;
-
-	tinyobj::attrib_t attrib;
-	array<tinyobj::shape_t> shapes;
-	array<tinyobj::material_t> materials;
-
-	struct vert_data {
-		vec3 location;
-	};
-
-	array<u32> indices;
-	array<vert_data> vertices;
-
-	rBuffer indexBuffer;
-	rBuffer vertexBuffer;
-	rBuffer projectionBuffer;
-
-	rGeometry() {
-	}
-
-	rGeometry(rEngine* inEngine, string source_path):engine(inEngine) {
-		string warn;
-		string error;
-
-		let ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &error, source_path.c_str());
-
-		let& mesh = shapes[0].mesh; // @hardcoded
-		let vertCount = mesh.indices.size();
-
-		indices.resize(vertCount);
-		vertices.resize(vertCount);
-
-		for (u32 idx = 0; idx < vertCount; ++idx)
-		{
-			indices[idx] = idx;
-			let vertIdx = mesh.indices[idx].vertex_index;
-			vertices[idx].location = {
-				attrib.vertices[vertIdx * 3],
-				attrib.vertices[vertIdx * 3 + 1],
-				attrib.vertices[vertIdx * 3 + 2],
-			};
-		}
-
-		let indexBufferSize = vertCount * sizeof(u32);
-		indexBuffer = rBuffer(engine, indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE);
-		rBufferSetMemory(&indexBuffer, indexBufferSize, indices.data());
-
-		let vertexBufferSize = vertCount * sizeof(vert_data);
-		vertexBuffer = rBuffer(engine, vertexBufferSize,  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE);
-		rBufferSetMemory(&vertexBuffer, vertexBufferSize, vertices.data());
-		
-		projectionBuffer = rBuffer(engine, sizeof(mat4), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE);
-		auto projection = mat4(1.0);
-		rBufferSetMemory(&projectionBuffer, sizeof(mat4), &projection);
-
-	}
-};
 
 void rPrimitiveFill(rPrimitive* primitive, rGeometry* geometry)
 {
@@ -158,7 +36,18 @@ int main()
 	window.scene = &scene;
 	
 	let projectionBuffer = rBuffer(engine, sizeof(mat4), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE);
-	auto projection = mat4(1.0);
+	var model = mat4(1.0);
+	var view = mat4(1.0);
+	var projection = mat4(1.0);
+	projection(0, 3) = 1.0f;
+	var screen = mat4(0.0);
+	screen(0, 2) = 1.0f;
+	screen(1, 0) = 1.0f;
+	screen(2, 1) = -1.0f;
+	screen(3, 3) = 1.0f;
+
+
+
 	rBufferSetMemory(&projectionBuffer, sizeof(mat4), &projection);
 	primitive.uniformBuffers = { projectionBuffer.buffer };
 	
@@ -178,17 +67,71 @@ int main()
 
 	vkUpdateDescriptorSets(engine->device, 1, &descriptorWrite, 0, nullptr);
 
+
+	var modelLocation = vec3(0);
+	var viewLocation = vec3(-5.0, 0.0, 0.0);
+	var viewForward = vec3(1.0, 0.0, 0.0);
+	var viewUp = vec3(0.0, 0.0f, 1.0);
+
+
 	while (rEngineShouldTick(engine))
 	{
 		rEngineStartFrame(engine);
 		
 		float scroll_speed = 0.01;
+		ImGui::DragFloat3("location", &modelLocation.x, scroll_speed);
+
+		model = mat4::location(modelLocation);
+
+		ImGui::DragFloat4("model[0]", &model.m[0], scroll_speed, -1.0, 1.0);
+		ImGui::DragFloat4("model[1]", &model.m[4], scroll_speed, -1.0, 1.0);
+		ImGui::DragFloat4("model[2]", &model.m[8], scroll_speed, -1.0, 1.0);
+		ImGui::DragFloat4("model[3]", &model.m[12], scroll_speed, -1.0, 1.0);
+	
+		ImGui::DragFloat3("viewLocation", &viewLocation.x, scroll_speed);
+
+/*
+		ImGui::DragFloat3("viewFwd", &viewForward.x, scroll_speed);
+		ImGui::DragFloat3("viewUp", &viewUp.x, scroll_speed);
+*/
+		viewForward = vec3(-viewLocation.x, -viewLocation.y, -viewLocation.z);
+		viewForward = viewForward.normalized();
+		//viewUp = viewUp.normalized();
+		viewUp = vec3(0.0, 0.0, 1.0);
+		let viewRight = vec3::cross(viewUp, viewForward);
+		viewUp = vec3::cross(viewForward, viewRight);
+		
+		//view = mat4::location(viewLocation );
+		//////
+		view(0, 0) = viewForward.x;
+		view(0, 1) = viewForward.y;
+		view(0, 2) = viewForward.z;
+
+		view(1, 0) = viewRight.x;
+		view(1, 1) = viewRight.y;
+		view(1, 2) = viewRight.z;
+
+		view(2, 0) = viewUp.x;
+		view(2, 1) = viewUp.y;
+		view(2, 2) = viewUp.z;
+
+		////
+
+
+		ImGui::DragFloat4("view[0]", &view.m[0], scroll_speed, -1.0, 1.0);
+		ImGui::DragFloat4("view[1]", &view.m[4], scroll_speed, -1.0, 1.0);
+		ImGui::DragFloat4("view[2]", &view.m[8], scroll_speed, -1.0, 1.0);
+		ImGui::DragFloat4("view[3]", &view.m[12], scroll_speed, -1.0, 1.0);
+	
 		ImGui::DragFloat4("proj[0]", &projection.m[0], scroll_speed, -1.0, 1.0);
 		ImGui::DragFloat4("proj[1]", &projection.m[4], scroll_speed, -1.0, 1.0);
 		ImGui::DragFloat4("proj[2]", &projection.m[8], scroll_speed, -1.0, 1.0);
 		ImGui::DragFloat4("proj[3]", &projection.m[12], scroll_speed, -1.0, 1.0);
 	
-		rBufferSetMemory(&projectionBuffer, sizeof(mat4), &projection);
+		mat4 mvp = model * view * projection * screen;
+
+		rBufferSetMemory(&projectionBuffer, sizeof(mat4), &mvp);
+
 		rEngineEndFrame(engine);
 	}
 	

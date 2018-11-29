@@ -5,13 +5,13 @@
 
 pronto:
 
-[] organizar las estructuras en headers
-[] implementar matemáticas de vectores
-[] implementar matemáticas de matrices
+[x] organizar las estructuras en headers
+[x] implementar mult de matrices
+[] implementar invertir matriz
 [] implementar transformaciones de matrices (rot, scale, translate)
+[] implementar matrices 2 (perspectiva, lookat, etc...)
 
 luego:
-[] pensar interfaz para 
 [] implementar logger
 [] implementar compilador de slang
 [] arreglar validation layer errors
