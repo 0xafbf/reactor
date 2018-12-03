@@ -15,6 +15,7 @@ luego:
 [] implementar logger
 [] implementar compilador de slang
 [] arreglar validation layer errors
+[] tomar screenshots
 
 
 
