@@ -1,7 +1,7 @@
 
 #include "geometry.h"
 
-rGeometry::rGeometry(rEngine* inEngine, string source_path):engine(inEngine) {
+rGeometry::rGeometry(rEngine& inEngine, string source_path):engine(&inEngine) {
 	string warn;
 	string error;
 
@@ -13,30 +13,37 @@ rGeometry::rGeometry(rEngine* inEngine, string source_path):engine(inEngine) {
 	indices.resize(vertCount);
 	vertices.resize(vertCount);
 
+	let obj_matrix = rRotateMatrix(vec3(1., 0., 0.), TAU/4);
+
+
 	for (u32 idx = 0; idx < vertCount; ++idx)
 	{
 		indices[idx] = idx;
 		let vertIdx = mesh.indices[idx].vertex_index;
-		vertices[idx].location = {
+		let uvIdx = mesh.indices[idx].texcoord_index;
+
+		let loc_init = vec3(
 			attrib.vertices[vertIdx * 3],
 			attrib.vertices[vertIdx * 3 + 1],
-			attrib.vertices[vertIdx * 3 + 2],
+			attrib.vertices[vertIdx * 3 + 2]);
+		
+		vertices[idx].location = obj_matrix * loc_init;
+			
+		vertices[idx].uv = {
+			attrib.texcoords[uvIdx * 2],
+			attrib.texcoords[uvIdx * 2 + 1],
 		};
 	}
 
 	let indexBufferSize = vertCount * sizeof(u32);
-	indexBuffer = rBuffer(engine, indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE);
-	rBufferSetMemory(&indexBuffer, indexBufferSize, indices.data());
+	indexBuffer = rBuffer(*engine, indices.data(), indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+	rBufferSync(indexBuffer);
 
 	let vertexBufferSize = vertCount * sizeof(vert_data);
-	vertexBuffer = rBuffer(engine, vertexBufferSize,  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE);
-	rBufferSetMemory(&vertexBuffer, vertexBufferSize, vertices.data());
+	vertexBuffer = rBuffer(*engine, vertices.data(), vertexBufferSize,  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+	rBufferSync(vertexBuffer);
 	
-	projectionBuffer = rBuffer(engine, sizeof(mat4), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE);
-	auto projection = mat4(1.0);
-	rBufferSetMemory(&projectionBuffer, sizeof(mat4), &projection);
-
-}
+	}
 
 
 

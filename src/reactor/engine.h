@@ -24,6 +24,7 @@ struct rEngine
 	// vulkan stuff, maybe better move to a vulkan struct?
 	VkInstance instance;
 	VkPhysicalDevice physicalDevice;
+	VkPhysicalDeviceMemoryProperties memProperties;
 	VkDevice device;
 	QueueFamilyIndices indices;
 	VkQueue graphicsQueue;
@@ -44,7 +45,9 @@ struct rEngine
 void rEngineStart(rEngine* engineInst);
 void rEngineDestroy(rEngine* engineInst);
 
-bool rEngineShouldTick(rEngine* engine);
-void rEngineStartFrame(rEngine* engine);
-void rEngineEndFrame(rEngine* engine);
-void rEngineMainLoop(rEngine* engine);
+u32 rEngineGetMemoryIdx(rEngine& engine, VkMemoryPropertyFlags flags);
+
+bool rEngineShouldTick(rEngine& engine);
+bool rEngineStartFrame(rEngine& engine);
+void rEngineEndFrame(rEngine& engine);
+void rEngineMainLoop(rEngine& engine);

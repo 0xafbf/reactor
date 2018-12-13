@@ -3,8 +3,12 @@
 #include "types.h"
 #include "vulkan/vulkan_core.h"
 #include "rmath.h"
+#include "buffer.h"
 
 struct rEngine;
+struct rBuffer;
+struct rGeometry;
+
 
 struct rGraphicsPipeline
 {
@@ -24,26 +28,22 @@ struct rGraphicsPipeline
 	VkPipelineLayout layout;
 	array<VkDescriptorSet> descriptorSets;
 
-	
-	rGraphicsPipeline(rEngine* inEngine, string inVertPath, string inFragPath);
-	~rGraphicsPipeline();
-};
-
-struct rPrimitive {
 	u32 indexCount;
 	VkBuffer indexBuffer;
 	array<VkBuffer> vertexBuffers;
-	array<VkBuffer> uniformBuffers;
 
-	rGraphicsPipeline* pipeline;
 };
 
-void rPrimitiveDraw(rPrimitive* primitive, rGraphicsPipeline* pipeline, VkCommandBuffer buffer);
+rGraphicsPipeline rPipeline(rEngine& inEngine, string inVertPath, string inFragPath);
+
+rGraphicsPipeline rPipeline(rEngine& inEngine, string inVertPath, string inFragPath, rGeometry& geometry);
+
+void rPipelineDraw(rGraphicsPipeline* pipeline, VkCommandBuffer buffer);
 
 
 struct rScene
 {
-	array<rPrimitive*> primitives;
+	array<rGraphicsPipeline*> primitives;
 };
 
 void rSceneDraw(rScene* scene, VkCommandBuffer buffer);

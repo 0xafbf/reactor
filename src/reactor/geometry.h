@@ -1,4 +1,4 @@
-
+#pragma once
 
 #include "tiny_obj_loader.h"
 
@@ -16,6 +16,7 @@ struct rGeometry {
 
 	struct vert_data {
 		vec3 location;
+		vec2 uv;
 	};
 
 	array<u32> indices;
@@ -23,12 +24,11 @@ struct rGeometry {
 
 	rBuffer indexBuffer;
 	rBuffer vertexBuffer;
-	rBuffer projectionBuffer;
 
 	rGeometry() {
 	}
 
-	rGeometry(rEngine* inEngine, string source_path);
+	rGeometry(rEngine& inEngine, string source_path);
 	
 };
 

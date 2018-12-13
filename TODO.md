@@ -7,15 +7,19 @@ pronto:
 
 [x] organizar las estructuras en headers
 [x] implementar mult de matrices
-[] implementar invertir matriz
-[] implementar transformaciones de matrices (rot, scale, translate)
-[] implementar matrices 2 (perspectiva, lookat, etc...)
+[x] abstraer camara
+[x] implementar texturas
+[] abstraer shaders (slang)
+[] interfaz de pipeline
+
+
 
 luego:
 [] implementar logger
 [] implementar compilador de slang
 [] arreglar validation layer errors
 [] tomar screenshots
+[] revisar coordenadas obj
 
 
 

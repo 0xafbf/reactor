@@ -280,7 +280,7 @@ bool rWindowRender(rWindow* window)
 	return true;
 }
 
-rWindow::rWindow(rEngine* inEngine, string inName, u32 inWidth, u32 inHeight) : engine(inEngine)
+rWindow::rWindow(rEngine& inEngine, string inName, u32 inWidth, u32 inHeight) : engine(&inEngine)
 , name(inName)
 , width(inWidth)
 , height(inHeight)

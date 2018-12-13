@@ -97,7 +97,7 @@ void setupDebugCallback(VkInstance instance) {
 	VK_CHECK(CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &callbackHandle));
 }
 
-void createDevice(rEngine* engineInst);
+void createDevice(rEngine& engine);
 void createRenderPasses(rEngine* engine);
 
 void rEngineStart(rEngine* engine)
@@ -132,7 +132,7 @@ void rEngineStart(rEngine* engine)
 	//////
 	setupDebugCallback(engine->instance);	
 	
-	createDevice(engine);
+	createDevice(*engine);
 	createRenderPasses(engine);
 	
 	VkDescriptorPoolSize pool_sizes[] =
@@ -229,6 +229,21 @@ void rEngineDestroy(rEngine* engineInst)
 		
 }
 
+u32 rEngineGetMemoryIdx(rEngine & engine, VkMemoryPropertyFlags flags)
+{
+	let& memProps = engine.memProperties;
+	u32 mem_idx = -1;
+	for (u32 idx = 0; idx < memProps.memoryTypeCount; ++idx)
+	{
+		let& memoryType = memProps.memoryTypes[idx];
+		if ((memoryType.propertyFlags & flags) == flags) {
+			mem_idx = idx;
+		}
+	}
+	assert(mem_idx != -1);
+	return mem_idx;
+}
+
 bool retrieveDeviceCapabilities(VkPhysicalDevice physicalDevice, QueueFamilyIndices* indices)
 {
 	uint32_t queueFamilyCount = 0;
@@ -250,31 +265,31 @@ bool retrieveDeviceCapabilities(VkPhysicalDevice physicalDevice, QueueFamilyIndi
 	return true;
 }
 
-void createDevice(rEngine* engineInst) {
+void createDevice(rEngine& engine) {
 	uint32_t deviceCount = 0;
-	vkEnumeratePhysicalDevices(engineInst->instance, &deviceCount, nullptr);
+	vkEnumeratePhysicalDevices(engine.instance, &deviceCount, nullptr);
 	assert(deviceCount != 0);
 	std::vector<VkPhysicalDevice> devices(deviceCount);
-	vkEnumeratePhysicalDevices(engineInst->instance, &deviceCount, devices.data());
+	vkEnumeratePhysicalDevices(engine.instance, &deviceCount, devices.data());
 	
 	for (const auto& device : devices) {
-		if (retrieveDeviceCapabilities(device, &engineInst->indices))
+		if (retrieveDeviceCapabilities(device, &engine.indices))
 		{
-			engineInst->physicalDevice = device;
+			engine.physicalDevice = device;
 			break;
 		}
 	}
 
-	assert(engineInst->physicalDevice);
+	assert(engine.physicalDevice);
 
 
 	uint32_t queueFamilyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(engineInst->physicalDevice, &queueFamilyCount, nullptr);
+	vkGetPhysicalDeviceQueueFamilyProperties(engine.physicalDevice, &queueFamilyCount, nullptr);
 	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(engineInst->physicalDevice, &queueFamilyCount, queueFamilies.data());
+	vkGetPhysicalDeviceQueueFamilyProperties(engine.physicalDevice, &queueFamilyCount, queueFamilies.data());
 
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-	std::set <u32> indicesSet = { engineInst->indices.graphicsFamily, engineInst->indices.presentFamily };
+	std::set <u32> indicesSet = { engine.indices.graphicsFamily, engine.indices.presentFamily };
 	for (u32 idx : indicesSet) {
 		VkDeviceQueueCreateInfo queueCreateInfo = {};
 		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -304,10 +319,12 @@ void createDevice(rEngine* engineInst) {
 	createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
 	createInfo.ppEnabledLayerNames = validationLayers.data();
 
-	VK_CHECK(vkCreateDevice(engineInst->physicalDevice, &createInfo, nullptr, &engineInst->device));
+	VK_CHECK(vkCreateDevice(engine.physicalDevice, &createInfo, nullptr, &engine.device));
 	
-	vkGetDeviceQueue(engineInst->device, engineInst->indices.graphicsFamily, 0, &engineInst->graphicsQueue);
-	vkGetDeviceQueue(engineInst->device, engineInst->indices.presentFamily, 0, &engineInst->presentQueue);
+	vkGetDeviceQueue(engine.device, engine.indices.graphicsFamily, 0, &engine.graphicsQueue);
+	vkGetDeviceQueue(engine.device, engine.indices.presentFamily, 0, &engine.presentQueue);
+
+	vkGetPhysicalDeviceMemoryProperties(engine.physicalDevice, &engine.memProperties);
 }
 
 
@@ -356,9 +373,9 @@ void createRenderPasses(rEngine* engine)
 
 
 
-bool rEngineShouldTick(rEngine* engine)
+bool rEngineShouldTick(rEngine& engine)
 {
-	if (engine->windows.size() > 0)
+	if (engine.windows.size() > 0)
 	{
 		return true;
 	}
@@ -366,17 +383,22 @@ bool rEngineShouldTick(rEngine* engine)
 }
 
 
-void rEngineStartFrame(rEngine* engine)
+bool rEngineStartFrame(rEngine& engine)
 {
+	if (!rEngineShouldTick(engine)) return false;
+
 	glfwPollEvents();
 	// this should be handled better for each window I guess.
 	ImGui_ImplGlfw_NewFrame();
 
 	ImGui::NewFrame();
+
+	return true;
 }
 
-void rEngineEndFrame(rEngine* engine)
+void rEngineEndFrame(rEngine& inEngine)
 {
+	rEngine* engine = &inEngine;
 	ImGui::Render();
 	
 	vkQueueWaitIdle(engine->presentQueue);
@@ -424,7 +446,7 @@ void rEngineEndFrame(rEngine* engine)
 	}
 }
 
-void rEngineMainLoop(rEngine* engine)
+void rEngineMainLoop(rEngine& engine)
 {
 	while (rEngineShouldTick(engine))
 	{

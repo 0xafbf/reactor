@@ -1,11 +1,36 @@
 
 #pragma once
-
+#define _USE_MATH_DEFINES
 #include <math.h>
+#include "imgui.h"
 
 
+// just placed here to bring these constants to where they can be looked for, and remove M_ prefix
+// I am a big lover of tau, and this is my way of pushing it forward
+// Other defines are
 
-let TAU = 3.141592 * 2;
+// tau is the circle constant, it is a proportion between a
+// circle radius and its
+#define TAU	6.283185307179586476925286766559005768394338798750211641
+#define PI (TAU*0.5)
+
+// e is the base of the natural logarithms, and growth constant used for
+// most exponential stuff
+#define E	2.718281828459045235360287471352662497757247093699959574
+
+// phi is the golden ratio number, can be used for pattern generation
+// and organic looking stuff
+#define PHI	1.618033988749894848204586834365638117720309179805762862
+
+#define turn * TAU
+#define deg * TAU / 360.0
+
+struct vector2
+{
+	float x;
+	float y;
+};
+typedef vector2 vec2;
 
 struct vector3
 {
@@ -59,6 +84,7 @@ struct vector3
 
 typedef vector3 vec3;
 
+
 struct mat4
 {
 	float m[16];
@@ -83,7 +109,16 @@ struct mat4
 		assert(jdx < 4);
 		return m[idx * 4 + jdx];
 	}
-
+	
+	const float& operator()(u32 idx, u32 jdx) const
+	{
+		assert(idx >= 0);
+		assert(jdx >= 0);
+		assert(idx < 4);
+		assert(jdx < 4);
+		return m[idx * 4 + jdx];
+	}
+	
 	mat4 operator+(mat4& rhs) {
 		mat4 r;
 		for (u32 idx = 0; idx < 4; ++idx) {
@@ -94,7 +129,7 @@ struct mat4
 		return r;
 	}
 
-	mat4 operator*(mat4& rhs)
+	mat4 operator*(const mat4& rhs)
 	{
 		mat4& lhs = *this;
 		mat4 r;
@@ -113,6 +148,16 @@ struct mat4
 
 		return r;
 	}
+
+	vec3 operator*(const vec3& rhs) const{
+		var r = vec3(0);
+		let& m = *this;
+		r.x = m(0, 0) * rhs.x + m(1, 0) * rhs.y + m(2, 0) * rhs.z;
+		r.y = m(0, 1) * rhs.x + m(1, 1) * rhs.y + m(2, 1) * rhs.z;
+		r.z = m(0, 2) * rhs.x + m(1, 2) * rhs.y + m(2, 2) * rhs.z;
+		return r;
+	}
+
 
 
 	mat4 transposed()
@@ -139,20 +184,16 @@ struct mat4
 	static mat4 orbit(float dist, float pitch, float yaw) {
 		
 		vec3 viewLocation;
-		viewLocation.x = dist * sinf(yaw / 360.0 * TAU) * cosf(pitch / 360 * TAU);
-		viewLocation.y = dist * cosf(yaw / 360.0 * TAU) * cosf(pitch / 360 * TAU);
-		viewLocation.z = dist * sinf(pitch / 360.0 * TAU);
+		viewLocation.x = dist * sin(yaw) * cos(pitch);
+		viewLocation.y = dist * cos(yaw) * cos(pitch);
+		viewLocation.z = dist * sin(pitch);
 
-		// vectores de proyeccion
-		var viewForward = vec3(-viewLocation.x, -viewLocation.y, -viewLocation.z);
-		viewForward = viewForward.normalized();
-		//viewUp = viewUp.normalized();
+		// projection vectors
+		var viewForward = vec3(-viewLocation.x, -viewLocation.y, -viewLocation.z).normalized();
 		var viewUp = vec3(0.0, 0.0, 1.0);
 		var viewRight = vec3::cross(viewUp, viewForward).normalized();
 		viewUp = vec3::cross(viewForward, viewRight);
 		
-		//view = mat4::location(viewLocation );
-		//////
 		var view = mat4(1);
 		view(0, 0) = viewForward.x;
 		view(0, 1) = viewForward.y;
@@ -205,9 +246,26 @@ struct mat4
 		
 		return r;
 	}
+	
+	static void debug(mat4& mat, string name) {
+		float scroll_speed = 0.01;
+		float limit = 10.;
+		ImGui::DragFloat4(name.c_str(), &mat.m[0], scroll_speed, -limit, limit);
+		ImGui::DragFloat4(name.c_str(), &mat.m[4], scroll_speed, -limit, limit);
+		ImGui::DragFloat4(name.c_str(), &mat.m[8], scroll_speed, -limit, limit);
+		ImGui::DragFloat4(name.c_str(), &mat.m[12], scroll_speed, -limit, limit);
+	}
+
+	static mat4 screen()
+	{
+		var r = mat4(0.);
+		r(0, 2) = 1.;
+		r(1, 0) = 1.;
+		r(2, 1) = -1.;
+		r(3, 3) = 1.;
+		return r;
+	}
 };
-
-
 
 
 template <class T>
@@ -222,3 +280,91 @@ T lerp(T a, T b, float t)
 {
 	return (a * mat4(1 - t)) + b * mat4(t);
 }
+
+
+struct rOrbitCamera {
+	float distance = 3.0;
+	float yaw = 45 deg;
+	float pitch = 30 deg;
+	float fov = 60 deg;
+
+	bool bDebug = false;
+};
+
+inline void rCameraTick(rOrbitCamera& camera)
+{
+		var io = ImGui::GetIO();
+		if (io.MouseDown[0] && !io.WantCaptureMouse)
+		{
+			let delta = io.MouseDelta;
+			let speed = 0.3 deg;
+			camera.yaw += delta.x * -speed;
+			camera.pitch += delta.y * speed;
+		}
+}
+
+inline mat4 rCameraProject(rOrbitCamera& camera, mat4 matrix, float aspect_ratio) 
+{
+	let view = mat4::orbit(camera.distance, camera.pitch, camera.yaw);
+	let projection = mat4::cam_perspective(60 deg, aspect_ratio);
+	
+	return matrix * view * projection;
+}
+struct rTransform {
+	vec3 location = vec3(0.);
+	vec3 rotation = vec3(0.);// Euler angles XYZ
+	vec3 scale = vec3(1.);
+};
+
+inline mat4 rRotateMatrix(vec3 axis, float angle)
+{
+	mat4 r(1.);
+	r(0, 0) = cos(angle) + (axis.x * axis.x * (1. - cos(angle)));
+	r(1, 1) = cos(angle) + (axis.y * axis.y * (1. - cos(angle)));
+	r(2, 2) = cos(angle) + (axis.z * axis.z * (1. - cos(angle)));
+
+	r(0, 1) = (axis.x * axis.y * (1. - cos(angle))) - (axis.z * sin(angle));
+	r(1, 0) = (axis.y * axis.x * (1. - cos(angle))) + (axis.z * sin(angle));
+	r(1, 2) = (axis.y * axis.z * (1. - cos(angle))) - (axis.x * sin(angle));
+	r(2, 1) = (axis.z * axis.y * (1. - cos(angle))) + (axis.x * sin(angle));
+	r(2, 0) = (axis.z * axis.x * (1. - cos(angle))) - (axis.y * sin(angle));
+	r(0, 2) = (axis.x * axis.z * (1. - cos(angle))) + (axis.y * sin(angle));
+	
+	return r;
+}
+
+// it would be interesting if there was a language that allowed something like:
+//   mat4 rRotateFwdMatrix(float angle) = #bake rRotateMatrix(vec3(1.,0.,0.));
+
+inline mat4 rRotateMatrix(vec3 eulerAngles) {
+	mat4 r(1.);
+	r = r * rRotateMatrix(vec3(1., 0., 0.), eulerAngles.x);
+	r = r * rRotateMatrix(vec3(0., 1., 0.), eulerAngles.y);
+	r = r * rRotateMatrix(vec3(0., 0., 1.), eulerAngles.z);
+	return r;
+}
+inline mat4 rScaleMatrix(vec3 scale) {
+	mat4 r(1.);
+	r(0, 0) = scale.x;
+	r(1, 1) = scale.y;
+	r(2, 2) = scale.z;
+	return r;
+}
+
+inline mat4 rTransformMatrix(const rTransform& transform) {
+	var r = rScaleMatrix(transform.scale);
+	r = r * rRotateMatrix(transform.rotation);
+	r = r * mat4::location(transform.location);
+	return r;
+}
+
+inline void rDebug(rTransform& transform, string text, bool snap = false)
+{
+	ImGui::PushID(&transform);
+	ImGui::DragFloat3("location", &transform.location.x, 0.01);
+	ImGui::DragFloat3("rotation", &transform.rotation.x, 0.01);
+	//transform.rotation.x -= fmod(transform.rotation.x ,(TAU / 8));// try snap later
+	ImGui::DragFloat3("scale", &transform.scale.x, 0.01);
+	ImGui::PopID();
+}
+

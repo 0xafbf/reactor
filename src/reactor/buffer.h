@@ -4,10 +4,12 @@
 
 #include "engine.h"
 #include "types.h"
+#include "scene.h"
 
 
 struct rBuffer {
 	u32 size;
+	void* data;
 	VkBufferUsageFlags usage;
 	VkSharingMode sharingMode;
 
@@ -17,7 +19,66 @@ struct rBuffer {
 
 	rBuffer() {}
 
-	rBuffer(rEngine* inEngine, u32 inSize, VkBufferUsageFlags inUsage, VkSharingMode inSharingMode);
+	rBuffer(rEngine& inEngine, void* inData, u32 inSize, VkBufferUsageFlags inUsage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VkSharingMode inSharingMode = VK_SHARING_MODE_EXCLUSIVE);
+
+	inline operator VkDescriptorBufferInfo();
+
 };
 
-void rBufferSetMemory(const rBuffer* buffer, u32 inSize, void* data);
+void rBufferSync(const rBuffer& buffer);
+
+VkDescriptorBufferInfo rDescriptorBufferInfo(rBuffer& buffer);
+
+	inline rBuffer::operator VkDescriptorBufferInfo()
+	{
+		return rDescriptorBufferInfo(*this);
+	}
+
+template<class T>
+struct rSlice
+{
+	T* data;
+	u32 size;
+
+	rSlice(const array<T> inArray)
+		: data(inArray.data())
+		, size(inArray.size())
+	{}
+
+};
+typedef rSlice<void> slice;
+
+struct rGraphicsPipeline;
+///void rPipelineUpdateDescriptorSets(rGraphicsPipeline& pipeline, u32 descriptorSet, u32 descriptorBinding, array<VkDescriptorBufferInfo> bufferInfos);
+struct rWriteDescriptorSet {
+	u32 setIndex;
+	u32 binding;
+	bool bUseImage;
+	array<VkDescriptorBufferInfo> bufferInfo;
+	array<VkDescriptorImageInfo> imageInfo;
+
+	rWriteDescriptorSet() {}
+
+	rWriteDescriptorSet(u32 inSetIndex, u32 inBinding, VkDescriptorBufferInfo inBufferInfo)
+	{
+		setIndex = inSetIndex;
+		binding = inBinding;
+		bufferInfo = { inBufferInfo };
+		bUseImage = false;
+		
+	}
+
+	rWriteDescriptorSet(u32 inSetIndex, u32 inBinding, VkDescriptorImageInfo inImageInfo)
+	{
+		setIndex = inSetIndex;
+		binding = inBinding;
+		imageInfo = { inImageInfo };
+		bUseImage = true;
+	}
+};
+
+
+void rPipelineUpdateDescriptorSets(rGraphicsPipeline & pipeline, array<rWriteDescriptorSet> rWrites);
+
+
+// this is an idea on how to manage shared resources

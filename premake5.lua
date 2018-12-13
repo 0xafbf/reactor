@@ -8,6 +8,8 @@ project "reactor"
 	kind "ConsoleApp"
 	language "C++"
 
+	warnings "Off"
+
 	files { "src/**.h", "src/**.cpp" }
 	includedirs { "src/reactor" }
 
@@ -21,6 +23,9 @@ project "reactor"
 	files { "deps/tinyobjloader/tiny_obj_loader.*" }
 	includedirs { "deps/tinyobjloader" }
 
+	files { "deps/stb/stb_image.h" }
+	includedirs { "deps/stb" }
+
 	-- files { "deps/glfw/"}
 	-- links {"glfw"}
 	includedirs { "deps/glfw/include"}
@@ -28,6 +33,10 @@ project "reactor"
 	
 	files { "deps/SPIRV-Reflect/spirv_reflect.*" }
 	includedirs { "deps/SPIRV-Reflect" }
+
+	files { "deps/slang/*.h"}
+	includedirs {"deps/slang"}
+	links { "deps/slang/bin/windows-x64/release/slang"}
 	
 	architecture "x86_64"
 		
@@ -49,8 +58,8 @@ project "reactor"
 		defines { "_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1"}
 		systemversion "latest"
 
-	-- files {"shaders/**.slang" }
-	filter "files:shaders/**.slang"
+	files {"shaders/**.slang" }
+	filter "files:shaders/basic.slang"
 		buildmessage "Compiling %{file.relpath}"
 		buildcommands {
 			"%{wks.location}/shaders/bin/slangc %{file.path} -entry vert -o %{wks.location}shaders/%{file.basename}.vert.spv",

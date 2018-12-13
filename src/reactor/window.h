@@ -37,7 +37,7 @@ struct rWindow
 	
 	rScene* scene;
 	
-	rWindow(rEngine* inEngine, string inName, u32 inWidth, u32 inHeight);
+	rWindow(rEngine& inEngine, string inName, u32 inWidth, u32 inHeight);
 	VkCommandBuffer commandBuffer;
 	u32 imageIndex;
 };

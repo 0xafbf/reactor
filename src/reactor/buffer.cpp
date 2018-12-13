@@ -2,9 +2,10 @@
 #include "buffer.h"
 #include "rmath.h"
 
-rBuffer::rBuffer(rEngine* inEngine, u32 inSize, VkBufferUsageFlags inUsage, VkSharingMode inSharingMode)
-	: size(inSize), usage(inUsage), sharingMode(inSharingMode)
-	, engine(inEngine)	{
+rBuffer::rBuffer(rEngine& inEngine, void* inData, u32 inSize, VkBufferUsageFlags inUsage, VkSharingMode inSharingMode)
+	: engine(&inEngine)
+	, data(inData), size(inSize), usage(inUsage), sharingMode(inSharingMode)
+	{
 
 	VkBufferCreateInfo bufferInfo = {};
 	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -17,19 +18,8 @@ rBuffer::rBuffer(rEngine* inEngine, u32 inSize, VkBufferUsageFlags inUsage, VkSh
 	VkMemoryRequirements memRequirements;
 	vkGetBufferMemoryRequirements(engine->device, buffer, &memRequirements);
 	
-	VkPhysicalDeviceMemoryProperties memProps;
-	vkGetPhysicalDeviceMemoryProperties(engine->physicalDevice, &memProps);
-	u32 mem_idx = -1;
-	for (u32 idx = 0; idx < memProps.memoryTypeCount; ++idx)
-	{
-		VkMemoryPropertyFlags memFlags = memProps.memoryTypes[idx].propertyFlags;
-		if (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT && memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-		{
-			mem_idx = idx;
-			break;
-		}
-	}
-	
+	u32 mem_idx = rEngineGetMemoryIdx(*engine, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
 	VkMemoryAllocateInfo memInfo = {};
 	memInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memInfo.allocationSize = memRequirements.size;
@@ -38,14 +28,48 @@ rBuffer::rBuffer(rEngine* inEngine, u32 inSize, VkBufferUsageFlags inUsage, VkSh
 	VK_CHECK(vkAllocateMemory(engine->device, &memInfo, nullptr, &memory));
 	
 	VK_CHECK(vkBindBufferMemory(engine->device, buffer, memory, 0));
+
 }
 
-void rBufferSetMemory(const rBuffer* buffer, u32 inSize, void* data)
+void rBufferSync(const rBuffer& buffer)
 {
-	assert(inSize <= buffer->size);	
-	u32 size = min(buffer->size, inSize);
 	void* vkData;
-	vkMapMemory(buffer->engine->device, buffer->memory, 0, size, 0, &vkData);
-	memcpy(vkData, data, size);
-	vkUnmapMemory(buffer->engine->device, buffer->memory);
+	vkMapMemory(buffer.engine->device, buffer.memory, 0, buffer.size, 0, &vkData);
+	memcpy(vkData, buffer.data, buffer.size);
+	vkUnmapMemory(buffer.engine->device, buffer.memory);
 }
+
+VkDescriptorBufferInfo rDescriptorBufferInfo(rBuffer & buffer) {
+	VkDescriptorBufferInfo bufferInfo;
+	bufferInfo.buffer = buffer.buffer;
+	bufferInfo.offset = 0;
+	bufferInfo.range = buffer.size;
+	return bufferInfo;
+}
+
+VkWriteDescriptorSet rDescriptorWrite(rGraphicsPipeline& pipeline, rWriteDescriptorSet& data) {
+	VkWriteDescriptorSet r = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+	r.dstSet = pipeline.descriptorSets[data.setIndex];
+	r.dstBinding = data.binding;
+	if (data.bUseImage) {
+		r.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		r.descriptorCount = data.imageInfo.size();
+		r.pImageInfo = data.imageInfo.data();
+	}
+	else {
+		r.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		r.descriptorCount = data.bufferInfo.size();
+		r.pBufferInfo = data.bufferInfo.data();
+	}
+	return r;
+}
+
+void rPipelineUpdateDescriptorSets(rGraphicsPipeline & pipeline, array<rWriteDescriptorSet> rWrites)
+{
+	array<VkWriteDescriptorSet> descriptorWrites(rWrites.size());
+	for (u32 idx = 0; idx < rWrites.size(); ++idx) {
+		descriptorWrites[idx] = rDescriptorWrite(pipeline, rWrites[idx]);
+	}
+	vkUpdateDescriptorSets(pipeline.engine->device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+}
+
