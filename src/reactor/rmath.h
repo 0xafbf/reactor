@@ -1,7 +1,8 @@
 
 #pragma once
-#define _USE_MATH_DEFINES
 #include <math.h>
+
+#include "types.h"
 #include "imgui.h"
 
 
@@ -61,15 +62,7 @@ struct vector3
 		return sqrtf(x*x + y * y + z * z);
 	}
 
-	vector3 normalized() {
-		let len = length();
-		vector3 r = *this;
-		r.x /= len;
-		r.y /= len;
-		r.z /= len;
-
-		return r;
-	}
+	vector3 normalized();
 
 	static vector3 cross(vector3 lhs, vector3 rhs)
 	{
@@ -219,42 +212,9 @@ struct mat4
 	};
 
 	// I decided to call this cam_perspective, just because I want to do another perspective that is better suited for effects/data
-	static mat4 cam_perspective(float fov, float aspect_ratio = 16/9, aspect_mode mode = ASPECT_VERTICAL,float near = 0.01, float far = 1000) {
-
-		float aspect_x = tanf(fov);
-		float aspect_y = aspect_x;
-		switch (mode)
-		{
-		case ASPECT_HORIZONTAL:
-			aspect_y /= aspect_ratio;
-			break;
-		case ASPECT_VERTICAL:
-			aspect_x *= aspect_ratio;
-			break;
-		default:
-			assert(false); // Unimplemented cam mode
-		}
-		
-		var r = mat4(0);
-		r(0, 0) = -far/ (near - far);
-		r(0, 3) = 1.0;
-
-		r(1, 1) = 1 / aspect_x;
-		r(2, 2) = 1  /aspect_y;
-
-		r(3, 0) = (near * far) / (near - far);
-		
-		return r;
-	}
+	static mat4 cam_perspective(float fov, float aspect_ratio = 16 / 9, aspect_mode mode = ASPECT_VERTICAL, float near_plane = 0.01, float far_plane = 1000);
 	
-	static void debug(mat4& mat, string name) {
-		float scroll_speed = 0.01;
-		float limit = 10.;
-		ImGui::DragFloat4(name.c_str(), &mat.m[0], scroll_speed, -limit, limit);
-		ImGui::DragFloat4(name.c_str(), &mat.m[4], scroll_speed, -limit, limit);
-		ImGui::DragFloat4(name.c_str(), &mat.m[8], scroll_speed, -limit, limit);
-		ImGui::DragFloat4(name.c_str(), &mat.m[12], scroll_speed, -limit, limit);
-	}
+	
 
 	static mat4 screen()
 	{
@@ -283,33 +243,17 @@ T lerp(T a, T b, float t)
 
 
 struct rOrbitCamera {
-	float distance = 3.0;
+	float distance = 4.0;
 	float yaw = 45 deg;
 	float pitch = 30 deg;
-	float fov = 60 deg;
+	float fov = 30 deg;
 
 	bool bDebug = false;
 };
 
-inline void rCameraTick(rOrbitCamera& camera)
-{
-		var io = ImGui::GetIO();
-		if (io.MouseDown[0] && !io.WantCaptureMouse)
-		{
-			let delta = io.MouseDelta;
-			let speed = 0.3 deg;
-			camera.yaw += delta.x * -speed;
-			camera.pitch += delta.y * speed;
-		}
-}
+void rCameraTick(rOrbitCamera& camera);
 
-inline mat4 rCameraProject(rOrbitCamera& camera, mat4 matrix, float aspect_ratio) 
-{
-	let view = mat4::orbit(camera.distance, camera.pitch, camera.yaw);
-	let projection = mat4::cam_perspective(60 deg, aspect_ratio);
-	
-	return matrix * view * projection;
-}
+mat4 rCameraProject(rOrbitCamera& camera, mat4 matrix, float aspect_ratio);
 struct rTransform {
 	vec3 location = vec3(0.);
 	vec3 rotation = vec3(0.);// Euler angles XYZ
@@ -368,3 +312,13 @@ inline void rDebug(rTransform& transform, string text, bool snap = false)
 	ImGui::PopID();
 }
 
+inline void rDebug(mat4& mat, string name) {
+	float scroll_speed = 0.01;
+	float limit = 10.;
+	ImGui::PushID(&mat);
+	ImGui::DragFloat4("mat[0]", &mat.m[0], scroll_speed, -limit, limit);
+	ImGui::DragFloat4("mat[1]", &mat.m[4], scroll_speed, -limit, limit);
+	ImGui::DragFloat4("mat[2]", &mat.m[8], scroll_speed, -limit, limit);
+	ImGui::DragFloat4("mat[3]", &mat.m[12], scroll_speed, -limit, limit);
+	ImGui::PopID();
+}

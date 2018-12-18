@@ -1,8 +1,9 @@
+
+#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 #include "image.h"
 #include "commandbuffer.h"
-
 
 rImage::operator VkDescriptorImageInfo()
 {
@@ -17,7 +18,7 @@ rImage::operator VkDescriptorImageInfo()
 
 void rImageCreate(rImage& image, string location) {
 
-	unsigned char *data = stbi_load("content/link.jpg", &image.width, &image.height, &image.depth, STBI_rgb_alpha);
+	unsigned char *data = stbi_load(location.c_str(), &image.width, &image.height, &image.depth, STBI_rgb_alpha);
 	
 	let bufferSize = image.width * image.height * 4;
 	var& engine = *image.engine;

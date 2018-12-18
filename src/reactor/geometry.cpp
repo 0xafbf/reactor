@@ -13,7 +13,10 @@ rGeometry::rGeometry(rEngine& inEngine, string source_path):engine(&inEngine) {
 	indices.resize(vertCount);
 	vertices.resize(vertCount);
 
-	let obj_matrix = rRotateMatrix(vec3(1., 0., 0.), TAU/4);
+	var obj_matrix = mat4(0);// rRotateMatrix(vec3(1., 0., 0.), -TAU / 4);
+	obj_matrix(0, 0) = 1.;
+	obj_matrix(1, 2) = 1.;
+	obj_matrix(2, 1) = 1.;
 
 
 	for (u32 idx = 0; idx < vertCount; ++idx)
@@ -28,6 +31,7 @@ rGeometry::rGeometry(rEngine& inEngine, string source_path):engine(&inEngine) {
 			attrib.vertices[vertIdx * 3 + 2]);
 		
 		vertices[idx].location = obj_matrix * loc_init;
+		// TODO: check if the model has uvs, if not, do something
 			
 		vertices[idx].uv = {
 			attrib.texcoords[uvIdx * 2],

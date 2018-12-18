@@ -11,6 +11,7 @@ pronto:
 [x] implementar texturas
 [] abstraer shaders (slang)
 [] interfaz de pipeline
+[] corregir mapeo de texturas
 
 
 

@@ -16,7 +16,9 @@
 #include "types.h"
 #include "window.h"
 #include "examples/imgui_impl_vulkan.h"
-#include "../../deps/imgui/examples/imgui_impl_glfw.h"
+#include "examples/imgui_impl_glfw.h"
+
+#include "reactor.h"
 
 #ifdef NDEBUG
 constexpr bool enableValidationLayers = false;
@@ -78,7 +80,9 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 
 VkDebugUtilsMessengerEXT callbackHandle;
 VkBool32 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
-	std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl << std::endl;
+
+	ERROR(pCallbackData->pMessage);
+	//std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl << std::endl;
 	// uncomment for breaking in error
 #ifdef DEBUG_VK_CALLBACK
 	assert(messageSeverity < VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT);

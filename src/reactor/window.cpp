@@ -16,6 +16,7 @@
 #include <imgui.h>
 
 #include "scene.h"
+#include "log.h"
 #include "examples/imgui_impl_glfw.h"
 #include "examples/imgui_impl_vulkan.h"
 
@@ -59,7 +60,7 @@ void rCreateWindow(rWindow* window)
 	std::vector<VkSurfaceFormatKHR> formats(formatCount);
 	vkGetPhysicalDeviceSurfaceFormatsKHR(engine->physicalDevice, window->surface, &formatCount, formats.data());
 
-	VkSurfaceFormatKHR surfaceFormat = { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
+	VkSurfaceFormatKHR surfaceFormat = { VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
 	/*
 	if (formats.size() == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
 		return { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
@@ -204,14 +205,14 @@ bool rWindowRender(rWindow* window)
 	VkResult nextImageResult = vkAcquireNextImageKHR(window->engine->device, window->swapchain, -1, window->imageAvailableSemaphore, VK_NULL_HANDLE, &window->imageIndex);
 	if (nextImageResult == VK_ERROR_OUT_OF_DATE_KHR)
 	{
-		std::cout << "vk out of date" << std::endl;
+		WARN("vk out of date");
 		//rWindowRefresh(window);
 		//continue;
 		return false;
 	}
 	else if (nextImageResult == VK_SUBOPTIMAL_KHR)
 	{
-		std::cout << "vk suboptimal" << std::endl;
+		WARN("vk suboptimal");
 		// it is still considered valid, so continue
 	}
 	VkCommandBufferBeginInfo beginInfo = {};

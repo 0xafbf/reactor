@@ -6,6 +6,7 @@
 #include "imgui.h"
 
 // reactor
+#include "log.h"
 
 #include "types.h"
 #include "rmath.h"

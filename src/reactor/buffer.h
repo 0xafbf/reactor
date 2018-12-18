@@ -49,7 +49,6 @@ struct rSlice
 typedef rSlice<void> slice;
 
 struct rGraphicsPipeline;
-///void rPipelineUpdateDescriptorSets(rGraphicsPipeline& pipeline, u32 descriptorSet, u32 descriptorBinding, array<VkDescriptorBufferInfo> bufferInfos);
 struct rWriteDescriptorSet {
 	u32 setIndex;
 	u32 binding;
@@ -77,8 +76,4 @@ struct rWriteDescriptorSet {
 	}
 };
 
-
 void rPipelineUpdateDescriptorSets(rGraphicsPipeline & pipeline, array<rWriteDescriptorSet> rWrites);
-
-
-// this is an idea on how to manage shared resources

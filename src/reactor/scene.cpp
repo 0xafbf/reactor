@@ -2,13 +2,54 @@
 #include "spirv_reflect.h"
 #include "algorithm"
 
+#include "slang.h"
 
 #include "engine.h"
 #include "scene.h"
 #include "geometry.h"
+#include "log.h"
 
 rGraphicsPipeline rPipeline(rEngine& inEngine, string inVertPath, string inFragPath) {
 
+	SlangSession* session = spCreateSession(NULL);
+	SlangCompileRequest* request = spCreateCompileRequest(session);
+	spSetCodeGenTarget(request, SLANG_SPIRV);
+	//spAddSearchPath(request, "some/path/");
+	//spAddPreprocessorDefine(request, "ENABLE_FOO", "1")
+
+
+	int translationUnitIndex = spAddTranslationUnit(request, SLANG_SOURCE_LANGUAGE_SLANG, nullptr); // nullptr was "" (empty string)
+
+	spAddTranslationUnitSourceFile(request, translationUnitIndex, inVertPath.c_str());
+	SlangProfileID profileID = spFindProfile(session, "ps_5_0");
+	
+	int entryPointIndex = spAddEntryPoint(
+    request,
+    translationUnitIndex,
+    "main",
+    profileID);
+
+	int anyErrors = spCompile(request);
+	char const* diagnostics = spGetDiagnosticOutput(request);
+
+	INFO("Slang diagnostic: %s", diagnostics);
+
+	// clear
+	spDestroyCompileRequest(request);
+	spDestroySession(session);
+
+
+
+
+
+
+
+
+
+
+
+	
+		
 		
 	rGraphicsPipeline r;
 	r.engine = &inEngine;
@@ -170,7 +211,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inVertPath, string inFragP
 	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
 	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-	rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizer.depthBiasEnable = VK_FALSE;
 
 	VkPipelineMultisampleStateCreateInfo multisampling = {};
