@@ -16,6 +16,3 @@
 [submodule "deps/slang"]
 	path = deps/slang
 	url = git@github.com:shader-slang/slang.git
-[submodule "deps/spdlog"]
-	path = deps/spdlog
-	url = git@github.com:gabime/spdlog.git

@@ -24,7 +24,7 @@ workspace "reactor"
 
 	
 project "reactor"
-	kind "ConsoleApp"
+	kind "WindowedApp"
 	language "C++"
 
 	warnings "Off"

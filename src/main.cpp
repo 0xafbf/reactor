@@ -1,8 +1,11 @@
 
 #include "reactor.h"
+#pragma comment( linker, "/subsystem:\"windows\" /entry:\"mainCRTStartup\"" )
+
 
 int main()
 {
+
 	var engine = rEngine("My Great App");
 	var window = rWindow(engine, "My Greatest Window", 1024, 1024); 
 	var geometry = rGeometry(engine, "content/cube.obj");
@@ -22,6 +25,8 @@ int main()
 
 	var image = rImage(engine, "content/uv.png");
 	rPipelineUpdateDescriptorSets(pipeline, { { 0, 1, image} });
+	// apparently this is needed to avoid a vulkan warning
+	rPipelineUpdateDescriptorSets(pipeline, { { 0, 2, image} });
 
 	while ( rEngineStartFrame(engine))
 	{

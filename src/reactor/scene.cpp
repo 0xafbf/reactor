@@ -41,9 +41,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inVertPath, string inFragP
 
 
 
-
-
-
+	//let console = spdlog::sinks::msvc_sink_mt();
 
 
 
