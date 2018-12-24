@@ -60,10 +60,10 @@ void rCameraTick(rOrbitCamera & camera)
 
 }
 
-mat4 rCameraProject(rOrbitCamera & camera, mat4 matrix, float aspect_ratio)
+mat4 rCameraProject(rOrbitCamera & camera, float aspect_ratio)
 {
 	let view = mat4::orbit(camera.distance, camera.pitch, camera.yaw);
 	let projection = mat4::cam_perspective(camera.fov, aspect_ratio);
 
-	return matrix * view * projection;
+	return view * projection;
 }

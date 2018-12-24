@@ -1,4 +1,10 @@
+
+
+includeexternal "deps/slang"
+
+
 workspace "reactor"
+
 	configurations { "Debug", "Work", "Release" }
 	
 	files { "premake5.lua" }
@@ -37,9 +43,6 @@ project "reactor"
 	links { "$(VULKAN_SDK)/lib/vulkan-1" }
 	includedirs { "$(VULKAN_SDK)/include" }
 
-	defines {"SLANG_STATIC"}  -- this is needed here so it doesn't look for __imp_ prefix
-	links {"slang"}
-	includedirs { "deps/slang" }
 
 	files { "deps/imgui/*.h", "deps/imgui/*.cpp" }
 	files { "deps/imgui/examples/imgui_impl_glfw.*", "deps/imgui/examples/imgui_impl_vulkan.*"}
@@ -56,15 +59,20 @@ project "reactor"
 	includedirs { "deps/glfw/include"}
 	links {"deps/glfw/glfw3"}
 	
+	includedirs { "deps/glfw/include"}
 	files { "deps/SPIRV-Reflect/spirv_reflect.*" }
 	includedirs { "deps/SPIRV-Reflect" }
 
-	files { "deps/spdlog/include/spdlog/**" }
-	includedirs { "deps/spdlog/include" }
+	includedirs { "deps/slang" }
 
-	
-	-- files {"shaders/**.slang" }
-	filter "files:shaders/basic.slang"
+	links {"deps/slang/bin/windows-x64/release/slang",
+		"deps/slang/bin/windows-x64/release/slang-glslang"}
+	copylocal {"deps/slang/bin/windows-x64/release/slang",
+		"deps/slang/bin/windows-x64/release/slang-glslang"}
+
+	includedirs { "deps/slang" }
+	files {"shaders/**.slang" }
+	filter "files:skipshaders/basic.slang"
 		buildmessage "Compiling %{file.relpath}"
 		buildcommands {
 			"%{wks.location}/shaders/bin/slangc %{file.path} -entry vert -o %{wks.location}shaders/%{file.basename}.vert.spv",
@@ -74,23 +82,3 @@ project "reactor"
 			"%{wks.location}shaders/%{file.basename}.frag.spv",
 			"%{wks.location}shaders/%{file.basename}.vert.spv"
 		}
-
-
-group "dependencies"
-			
-	project "slang"
-		kind "StaticLib"
-		language "C++"
-
-		location "deps/slang"
-		architecture "x86_64"
-
-		defines {"SLANG_STATIC"}
-
-		files { "deps/slang/*.h"}
-		files { "deps/slang/source/slang/*.cpp"}
-		files { "deps/slang/source/slang/*.h"}
-		files { "deps/slang/source/core/*.cpp"}
-		files { "deps/slang/source/core/*.h"}
-		files { "deps/slang/source/slang/slang.natvis" }
-		includedirs {"deps/slang"}

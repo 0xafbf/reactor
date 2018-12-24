@@ -1,11 +1,17 @@
 
-cbuffer Uniforms
+cbuffer instance
 {
-	float4x4 projection;
-	Texture2D <float4> MyTex;
-	SamplerState s;
+	float4x4 transform;
 }
 
+cbuffer world
+{
+	float4x4 projection;
+}
+
+
+Texture2D <float4> MyTex;
+SamplerState s;
 
 struct Vertex
 {
@@ -15,17 +21,19 @@ struct Vertex
 
 struct FragInput
 {
+	float3 location;
 	float4 coarseLocation:SV_Position;
 	float2 uv;
 }
-
-//sampler MySamp;
-
 [shader("vertex")]
 FragInput vert(Vertex inVert) 
 {
 	FragInput r;
-	r.coarseLocation = mul(projection, float4(inVert.location, 1.0));
+	r.location = inVert.location;
+	float4 point = float4(inVert.location, 1.0);
+	point = mul(transform, point);
+	point = mul(projection, point);
+	r.coarseLocation = point;
 	r.uv = inVert.uv;
 	return r;
 }
@@ -34,5 +42,12 @@ FragInput vert(Vertex inVert)
 float4 frag(FragInput in) : SV_Target
 {
 	//return float4(in.uv.x, in.uv.y, 0., 1.);
-	return  MyTex.Sample(s, in.uv);
+	float4 color = MyTex.Sample(s, in.uv) ;
+	color *= 0.3;
+
+	float3 obj_zero_to_one = (in.location + 1.) * 0.5;
+	float divisions = 4.;
+	int3 co = int3(obj_zero_to_one * divisions);
+	color.z = transform[co.x][co.y] ;
+	return color; 
 }

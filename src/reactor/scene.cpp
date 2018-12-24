@@ -9,170 +9,194 @@
 #include "geometry.h"
 #include "log.h"
 
-rGraphicsPipeline rPipeline(rEngine& inEngine, string inVertPath, string inFragPath) {
+rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 
 	SlangSession* session = spCreateSession(NULL);
 	SlangCompileRequest* request = spCreateCompileRequest(session);
 	spSetCodeGenTarget(request, SLANG_SPIRV);
-	//spAddSearchPath(request, "some/path/");
+	spAddSearchPath(request, "shaders/");
 	//spAddPreprocessorDefine(request, "ENABLE_FOO", "1")
 
 
 	int translationUnitIndex = spAddTranslationUnit(request, SLANG_SOURCE_LANGUAGE_SLANG, nullptr); // nullptr was "" (empty string)
 
-	spAddTranslationUnitSourceFile(request, translationUnitIndex, inVertPath.c_str());
+	spAddTranslationUnitSourceFile(request, translationUnitIndex, inPath.c_str());
 	SlangProfileID profileID = spFindProfile(session, "ps_5_0");
-	
-	int entryPointIndex = spAddEntryPoint(
-    request,
-    translationUnitIndex,
-    "main",
-    profileID);
 
 	int anyErrors = spCompile(request);
+	assert(anyErrors >= 0);
 	char const* diagnostics = spGetDiagnosticOutput(request);
 
-	INFO("Slang diagnostic: %s", diagnostics);
+	INFO("Slang diagnostic err: %d, diagnostic: %s", anyErrors, diagnostics);
 
-	// clear
-	spDestroyCompileRequest(request);
-	spDestroySession(session);
+	let reflection = spGetReflection(request);
 
-
-
-
-	//let console = spdlog::sinks::msvc_sink_mt();
-
-
-
-
-	
-		
-		
 	rGraphicsPipeline r;
 	r.engine = &inEngine;
-	r.vertPath = inVertPath;
-	r.fragPath = inFragPath;
-	r.vertShader = loadFile(r.vertPath);
-	r.fragShader = loadFile(r.fragPath);
 
-	SpvReflectShaderModule module;
-	u32 spv_size = r.vertShader.size();
-	
-	let result = spvReflectCreateShaderModule(spv_size, r.vertShader.data(), &module);
-	assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
-	u32 var_count;
-	let result2 = spvReflectEnumerateInputVariables( &module, &var_count, nullptr);
-	assert(result2 == SPV_REFLECT_RESULT_SUCCESS);
-	array<SpvReflectInterfaceVariable*> spv_vars(var_count);
+	array<VkPipelineShaderStageCreateInfo> shader_stages;
+	array<VkVertexInputBindingDescription> input_bindings;
+	array<VkVertexInputAttributeDescription> input_attributes;
 
-	SPV_CHECK(spvReflectEnumerateInputVariables( &module, &var_count, spv_vars.data()));
+	int entry_point_count = spReflection_getEntryPointCount(reflection);
+	for (u32 idx = 0; idx < entry_point_count; idx++)
+	{
+		int entry_point_index = idx;
+		size_t code_size;
+		let code = spGetEntryPointCode(request, entry_point_index, &code_size);
+		let entry_point = spReflection_getEntryPointByIndex(reflection,entry_point_index);
+		let entry_point_name = "main";  // it seems the compiler always outputs entry point main
 
-	VkShaderModuleCreateInfo vertInfo = {};
-	vertInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	vertInfo.codeSize = spvReflectGetCodeSize(&module);
-	vertInfo.pCode = spvReflectGetCode(&module);
-	VK_CHECK(vkCreateShaderModule(r.engine->device, &vertInfo, nullptr, &r.vertModule));
+		let slang_stage = spReflectionEntryPoint_getStage(entry_point);
+		var stage = VkShaderStageFlagBits(0);
 
-	VkShaderModuleCreateInfo fragInfo = {};
-	fragInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	fragInfo.codeSize = r.fragShader.size();
-	fragInfo.pCode = reinterpret_cast<u32*>(r.fragShader.data());
-	VK_CHECK(vkCreateShaderModule(r.engine->device, &fragInfo, nullptr, &r.fragModule));
-
-	VkPipelineShaderStageCreateInfo vertStageInfo = {};
-	vertStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	vertStageInfo.module = r.vertModule;
-	vertStageInfo.pName = "main";
-
-	VkPipelineShaderStageCreateInfo fragStageInfo = {};
-	fragStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	fragStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	fragStageInfo.module = r.fragModule;
-	fragStageInfo.pName = "main";
-
-	VkPipelineShaderStageCreateInfo shaderStages[] = { vertStageInfo, fragStageInfo };
-
-	VkVertexInputBindingDescription bindingDescription = {};
-	bindingDescription.binding = 0;
-	bindingDescription.stride = 0; // to be filled later
-	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-	u32 input_count;
-	SPV_CHECK(spvReflectEnumerateEntryPointInputVariables(
-			&module,
-			"main",
-			&input_count,
-			nullptr));
-	array<SpvReflectInterfaceVariable*> inputVars(input_count);
-	SPV_CHECK(spvReflectEnumerateEntryPointInputVariables(
-			&module,
-			"main",
-			&input_count,
-			inputVars.data()));
-
-	array<VkVertexInputAttributeDescription> attributeDescriptions(input_count);
-	for (u32 idx = 0; idx < input_count; ++idx) {
-		let input = inputVars[idx];
-		VkVertexInputAttributeDescription& attributeDescription = attributeDescriptions[idx];
-		attributeDescription.binding = bindingDescription.binding;
-		attributeDescription.location = input->location;
-		attributeDescription.format = VkFormat(input->format);
-		attributeDescription.offset = 0; // computed after sorting
-	}
-
-	std::sort(std::begin(attributeDescriptions), std::end(attributeDescriptions),
-				[](const VkVertexInputAttributeDescription& a,
-				const VkVertexInputAttributeDescription& b){
-				return a.location < b.location;});
-	for (auto& attribute : attributeDescriptions) {
-		u32 size = 0;
-
-#define IMPLEMENT_CASE(fmt, fmt_size) case fmt: size = fmt_size; break;
-
-		switch(attribute.format){
-			IMPLEMENT_CASE(VK_FORMAT_UNDEFINED, 0);
-			IMPLEMENT_CASE(VK_FORMAT_R32G32B32_SFLOAT, 12);
-			IMPLEMENT_CASE(VK_FORMAT_R32G32B32A32_SFLOAT, 16);
-			IMPLEMENT_CASE(VK_FORMAT_R32G32_SFLOAT, 8);
+		switch (slang_stage) {
+		case SLANG_STAGE_VERTEX: stage = VK_SHADER_STAGE_VERTEX_BIT; break;
+		case SLANG_STAGE_FRAGMENT: stage = VK_SHADER_STAGE_FRAGMENT_BIT; break;
 		}
-		assert (size != 0);
-		attribute.offset = bindingDescription.stride;
-		bindingDescription.stride += size;
+
+		VkShaderModuleCreateInfo shader_module_info = {};
+		shader_module_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		shader_module_info.codeSize = code_size;
+		shader_module_info.pCode = (u32*)code;	
+
+		VkShaderModule* stage_module;
+		if (stage == VK_SHADER_STAGE_VERTEX_BIT) stage_module = &r.vertModule;
+		if (stage == VK_SHADER_STAGE_FRAGMENT_BIT) stage_module = &r.fragModule;
+		assert(stage_module);
+		VK_CHECK(vkCreateShaderModule(r.engine->device, &shader_module_info, nullptr, stage_module));
+
+		VkPipelineShaderStageCreateInfo stage_info = {};
+		stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stage_info.stage = stage;
+		stage_info.module = *stage_module;
+		stage_info.pName = entry_point_name;
+		shader_stages.push_back(stage_info);
+
+		u32 param_count = spReflectionEntryPoint_getParameterCount(entry_point);
+		for (u32 jdx = 0; jdx < param_count; ++jdx) {
+			// hack
+			if (stage == VK_SHADER_STAGE_FRAGMENT_BIT) continue;
+			let param = spReflectionEntryPoint_getParameterByIndex(entry_point, jdx);
+			let binding_index = spReflectionParameter_GetBindingIndex(param);
+			let layout = spReflectionVariableLayout_GetTypeLayout(param);
+			let category = spReflectionParameter_GetBindingIndex(param);
+			let type = spReflectionTypeLayout_GetType(layout);
+			var stride = 0;
+
+			let field_count = spReflectionType_GetFieldCount(type);
+			for (u32 kdx = 0; kdx < field_count; ++kdx) {
+				let field = spReflectionType_GetFieldByIndex(type, kdx);
+				let field_type = spReflectionVariable_GetType(field);
+				INFO("found field %s : %s", spReflectionVariable_GetName(field), spReflectionType_GetName(field_type));
+
+				let scalar_type = spReflectionType_GetScalarType(field_type);
+				let elem_count = spReflectionType_GetElementCount(field_type);
+				let elem_type = spReflectionType_GetElementType(field_type);
+
+				let elem_type_count = spReflectionType_GetElementCount(elem_type);
+				let elem_arst = spReflectionType_GetScalarType(elem_type);
+
+				var format = VK_FORMAT_R32_SFLOAT;
+				if (elem_count == 2) format = VK_FORMAT_R32G32_SFLOAT;
+				if (elem_count == 3) format = VK_FORMAT_R32G32B32_SFLOAT;
+				if (elem_count == 4) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+
+				VkVertexInputAttributeDescription attribute_description;
+				attribute_description.binding = binding_index;
+				attribute_description.format = format;
+				attribute_description.location = kdx;
+				attribute_description.offset = stride;
+				input_attributes.push_back(attribute_description);
+
+				stride += elem_count * 4;
+			}
+			VkVertexInputBindingDescription binding_description = {};
+			binding_description.binding = binding_index;
+			binding_description.stride = stride;
+			binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+			input_bindings.push_back(binding_description);
+		}
 	}
-	u32 bindingCount;
-	spvReflectEnumerateDescriptorBindings(&module, &bindingCount, nullptr);
-	array<SpvReflectDescriptorBinding*> descriptorBindings(bindingCount);
-	spvReflectEnumerateDescriptorBindings(&module, &bindingCount, descriptorBindings.data());
 
-	array<VkDescriptorSetLayoutBinding> layoutBindings(bindingCount);
-	for (u32 idx = 0; idx < bindingCount; ++idx) {
-		let& binding = descriptorBindings[idx];
+	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+	vertexInputInfo.vertexBindingDescriptionCount = input_bindings.size();
+	vertexInputInfo.pVertexBindingDescriptions = input_bindings.data();
+	vertexInputInfo.pVertexAttributeDescriptions = input_attributes.data();
+	vertexInputInfo.vertexAttributeDescriptionCount = input_attributes.size();
+	
+	let parameter_count = spReflection_GetParameterCount(reflection);  // these are all the uniform bindings I guess
+	var layout_bindings = array<VkDescriptorSetLayoutBinding>();
 
-		VkDescriptorSetLayoutBinding& layoutBinding = layoutBindings[idx];
-		layoutBinding.binding = binding->binding;
-		layoutBinding.descriptorType = VkDescriptorType(binding->descriptor_type);
-		layoutBinding.descriptorCount = binding->count;
+	for (u32 idx = 0; idx < parameter_count; ++idx) {
+		let parameter = spReflection_GetParameterByIndex(reflection, idx);
+		let binding = spReflectionParameter_GetBindingIndex(parameter);
 
-		layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-		layoutBinding.pImmutableSamplers = nullptr;
+		let variable = spReflectionVariableLayout_GetVariable(parameter);
+		let variable_name = spReflectionVariable_GetName(variable);
+
+		let layout = spReflectionVariableLayout_GetTypeLayout(parameter);
+		let type = spReflectionTypeLayout_GetType(layout);
+		let type_name = spReflectionType_GetName(type);
+
+		INFO("layouts variable %s : %s index %d", variable_name, type_name, binding);
+		
+		let category_count = spReflectionTypeLayout_GetCategoryCount(layout); // seems always 1
+		let elem_type_layout = spReflectionTypeLayout_GetElementTypeLayout(layout);
+		let elem_var_layout = spReflectionTypeLayout_GetElementVarLayout(layout);
+
+		let category = spReflectionTypeLayout_GetParameterCategory(layout);
+		if (category == SLANG_PARAMETER_CATEGORY_UNIFORM) continue;// INFO("uniform");
+		if (category == SLANG_PARAMETER_CATEGORY_DESCRIPTOR_TABLE_SLOT) INFO("descriptor table slot");
+		let size = spReflectionTypeLayout_GetSize(layout, category);
+
+		let kind = spReflectionType_GetKind(type);
+
+		var descriptor_type = VkDescriptorType(0);
+		if (kind == SLANG_TYPE_KIND_CONSTANT_BUFFER) descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		if (kind == SLANG_TYPE_KIND_RESOURCE) descriptor_type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		if (kind == SLANG_TYPE_KIND_SAMPLER_STATE) descriptor_type = VK_DESCRIPTOR_TYPE_SAMPLER;
+
+		VkDescriptorSetLayoutBinding layout_binding;
+		layout_binding.binding = binding;
+		layout_binding.descriptorCount = 1;
+		layout_binding.descriptorType = descriptor_type;
+		layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+		layout_binding.pImmutableSamplers = nullptr;
+		layout_bindings.push_back(layout_binding);
 	}
+	VkDescriptorSetLayoutCreateInfo layout_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+	//layout_info.flags = 0
+	layout_info.pBindings = layout_bindings.data();
+	layout_info.bindingCount = layout_bindings.size();
 
-	VkDescriptorSetLayoutCreateInfo layoutInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-	layoutInfo.bindingCount = layoutBindings.size();
-	layoutInfo.pBindings = layoutBindings.data();
-	VK_CHECK(vkCreateDescriptorSetLayout(r.engine->device, &layoutInfo, nullptr, &r.descriptorSetLayout));
+	VkDescriptorSetLayout descriptor_set_layout;
+	VK_CHECK(vkCreateDescriptorSetLayout(r.engine->device, &layout_info, nullptr, &descriptor_set_layout));
+	r.descriptor_set_layouts.push_back(descriptor_set_layout);
+	
+	var pool_sizes = array<VkDescriptorPoolSize>();
+	
+	VkDescriptorPoolSize pool_size;
+	pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	pool_size.descriptorCount = 10;
+	pool_sizes.push_back(pool_size);
 
-	VkDescriptorPoolSize poolSize;
-	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSize.descriptorCount = 1;
+	VkDescriptorPoolSize pool_size_2;
+	pool_size_2.type = VK_DESCRIPTOR_TYPE_SAMPLER;
+	pool_size_2.descriptorCount = 10;
+	pool_sizes.push_back(pool_size_2);
+
+	VkDescriptorPoolSize pool_size__22;
+	pool_size__22.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	pool_size__22.descriptorCount = 10;
+	pool_sizes.push_back(pool_size__22);
 
 	VkDescriptorPoolCreateInfo poolInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-	poolInfo.poolSizeCount = 1;
-	poolInfo.pPoolSizes = &poolSize;
-	poolInfo.maxSets = 1;
+	poolInfo.poolSizeCount = pool_sizes.size();
+	poolInfo.pPoolSizes = pool_sizes.data();
+	poolInfo.maxSets = 100;
 	
 	VkDescriptorPool descriptorPool;
 
@@ -181,15 +205,14 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inVertPath, string inFragP
 	VkDescriptorSetAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
 	allocInfo.descriptorPool = descriptorPool;
 	allocInfo.descriptorSetCount = 1;
-	allocInfo.pSetLayouts = &r.descriptorSetLayout;
+	allocInfo.pSetLayouts = &descriptor_set_layout;
 	r.descriptorSets.resize(1);
 	VK_CHECK(vkAllocateDescriptorSets(r.engine->device, &allocInfo, r.descriptorSets.data()));
 
-	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-	vertexInputInfo.vertexBindingDescriptionCount = 1;
-	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
-	vertexInputInfo.vertexAttributeDescriptionCount = attributeDescriptions.size();
+	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+	pipelineLayoutInfo.setLayoutCount = r.descriptor_set_layouts.size();
+	pipelineLayoutInfo.pSetLayouts = r.descriptor_set_layouts.data();
+	VK_CHECK(vkCreatePipelineLayout(r.engine->device, &pipelineLayoutInfo, nullptr, &r.layout));
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
 	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -230,11 +253,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inVertPath, string inFragP
 	colorBlendInfo.attachmentCount = 1;
 	colorBlendInfo.pAttachments = &colorBlendAttachment;
 
-	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-	pipelineLayoutInfo.setLayoutCount = 1;
-	pipelineLayoutInfo.pSetLayouts = &r.descriptorSetLayout;
-
-	VK_CHECK(vkCreatePipelineLayout(r.engine->device, &pipelineLayoutInfo, nullptr, &r.layout));
+	
 
 	array<VkDynamicState> dynamicStateEnables;
 	dynamicStateEnables.push_back(VK_DYNAMIC_STATE_VIEWPORT);
@@ -247,7 +266,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inVertPath, string inFragP
 
 	VkGraphicsPipelineCreateInfo pipelineCreateInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
 	pipelineCreateInfo.stageCount = 2;
-	pipelineCreateInfo.pStages = shaderStages;
+	pipelineCreateInfo.pStages = shader_stages.data();
 	pipelineCreateInfo.pVertexInputState = &vertexInputInfo;
 	pipelineCreateInfo.pInputAssemblyState = &inputAssembly;
 	pipelineCreateInfo.pViewportState = &viewportState;
@@ -269,8 +288,8 @@ void rPipelineSetGeometry(rGraphicsPipeline& pipeline, rGeometry& geometry) {
 	pipeline.indexBuffer = geometry.indexBuffer.buffer;
 }
 
-rGraphicsPipeline rPipeline(rEngine & inEngine, string inVertPath, string inFragPath, rGeometry & geometry) {
-	var r = rPipeline(inEngine, inVertPath, inFragPath);
+rGraphicsPipeline rPipeline(rEngine & inEngine, string inPath, rGeometry & geometry) {
+	var r = rPipeline(inEngine, inPath);
 	rPipelineSetGeometry(r, geometry);
 	return r;
 }

@@ -12,19 +12,14 @@ struct rGeometry;
 
 struct rGraphicsPipeline
 {
-	string vertPath;
-	string fragPath;
 	rEngine* engine;
-	
-	array<char> vertShader;
-	array<char> fragShader;
 	
 	VkShaderModule vertModule;
 	VkShaderModule fragModule;
 	
 	VkPipeline pipeline;
 	
-	VkDescriptorSetLayout descriptorSetLayout;
+	array<VkDescriptorSetLayout> descriptor_set_layouts;
 	VkPipelineLayout layout;
 	array<VkDescriptorSet> descriptorSets;
 
@@ -34,11 +29,12 @@ struct rGraphicsPipeline
 
 };
 
-rGraphicsPipeline rPipeline(rEngine& inEngine, string inVertPath, string inFragPath);
+rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath);
 
-rGraphicsPipeline rPipeline(rEngine& inEngine, string inVertPath, string inFragPath, rGeometry& geometry);
+rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath, rGeometry& geometry);
 
 void rPipelineDraw(rGraphicsPipeline* pipeline, VkCommandBuffer buffer);
+void rPipelineSetGeometry(rGraphicsPipeline& pipeline, rGeometry& geometry);
 
 
 struct rScene

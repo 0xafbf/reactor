@@ -122,9 +122,9 @@ struct mat4
 		return r;
 	}
 
-	mat4 operator*(const mat4& rhs)
+	mat4 operator*(const mat4& rhs) const
 	{
-		mat4& lhs = *this;
+		const mat4& lhs = *this;
 		mat4 r;
 
 		for (u32 idx = 0; idx < 4; ++idx)
@@ -253,7 +253,7 @@ struct rOrbitCamera {
 
 void rCameraTick(rOrbitCamera& camera);
 
-mat4 rCameraProject(rOrbitCamera& camera, mat4 matrix, float aspect_ratio);
+mat4 rCameraProject(rOrbitCamera& camera, float aspect_ratio);
 struct rTransform {
 	vec3 location = vec3(0.);
 	vec3 rotation = vec3(0.);// Euler angles XYZ
