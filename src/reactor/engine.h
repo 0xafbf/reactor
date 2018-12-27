@@ -37,6 +37,9 @@ struct rEngine
 	rEngine(string inName);
 	~rEngine();
 	VkDescriptorPool descriptorPool;
+
+	double deltaTime;
+	float uptime;
 };
 
 /**

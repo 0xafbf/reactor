@@ -46,30 +46,3 @@ VkDescriptorBufferInfo rDescriptorBufferInfo(rBuffer & buffer) {
 	bufferInfo.range = buffer.size;
 	return bufferInfo;
 }
-
-VkWriteDescriptorSet rDescriptorWrite(rGraphicsPipeline& pipeline, rWriteDescriptorSet& data) {
-	VkWriteDescriptorSet r = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	r.dstSet = pipeline.descriptorSets[data.setIndex];
-	r.dstBinding = data.binding;
-	if (data.bUseImage) {
-		r.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		r.descriptorCount = data.imageInfo.size();
-		r.pImageInfo = data.imageInfo.data();
-	}
-	else {
-		r.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		r.descriptorCount = data.bufferInfo.size();
-		r.pBufferInfo = data.bufferInfo.data();
-	}
-	return r;
-}
-
-void rPipelineUpdateDescriptorSets(rGraphicsPipeline & pipeline, array<rWriteDescriptorSet> rWrites)
-{
-	array<VkWriteDescriptorSet> descriptorWrites(rWrites.size());
-	for (u32 idx = 0; idx < rWrites.size(); ++idx) {
-		descriptorWrites[idx] = rDescriptorWrite(pipeline, rWrites[idx]);
-	}
-	vkUpdateDescriptorSets(pipeline.engine->device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
-}
-

@@ -5,20 +5,12 @@
 #include "image.h"
 #include "commandbuffer.h"
 
-rImage::operator VkDescriptorImageInfo()
-{
-	
-	VkDescriptorImageInfo descrImageInfo;
-	descrImageInfo.sampler = this->sampler;
-	descrImageInfo.imageView = this->imageView;
-	descrImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	return descrImageInfo;
-}
 
 void rImageCreate(rImage& image, string location) {
 
 	unsigned char *data = stbi_load(location.c_str(), &image.width, &image.height, &image.depth, STBI_rgb_alpha);
+	assert(data);
 	
 	let bufferSize = image.width * image.height * 4;
 	var& engine = *image.engine;

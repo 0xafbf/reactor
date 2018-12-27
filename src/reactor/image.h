@@ -25,5 +25,4 @@ struct rImage {
 		rImageCreate(*this, path);
 	}
 
-	operator VkDescriptorImageInfo();
 };

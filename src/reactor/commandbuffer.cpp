@@ -16,19 +16,20 @@ VkCommandBuffer beginSingleTimeCommands(rEngine & engine)
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 	
 
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+	VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
 
     return commandBuffer;
 }
 
-void endSingleTimeCommands(rEngine & engine, VkCommandBuffer commandBuffer){    vkEndCommandBuffer(commandBuffer);
+void endSingleTimeCommands(rEngine & engine, VkCommandBuffer commandBuffer){    
+	VK_CHECK(vkEndCommandBuffer(commandBuffer));
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
-    vkQueueSubmit(engine.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    VK_CHECK(vkQueueSubmit(engine.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE));
     vkQueueWaitIdle(engine.graphicsQueue);
 
     vkFreeCommandBuffers(engine.device, engine.commandPool, 1, &commandBuffer);

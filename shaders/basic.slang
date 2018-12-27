@@ -43,11 +43,23 @@ float4 frag(FragInput in) : SV_Target
 {
 	//return float4(in.uv.x, in.uv.y, 0., 1.);
 	float4 color = MyTex.Sample(s, in.uv) ;
+	//float4 color = float4(1.0);
 	color *= 0.3;
 
-	float3 obj_zero_to_one = (in.location + 1.) * 0.5;
-	float divisions = 4.;
-	int3 co = int3(obj_zero_to_one * divisions);
-	color.z = transform[co.x][co.y] ;
+	float2 tile_coordinates = in.uv;
+
+	float4x4 distorted;
+	for(int i = 0; i < 3; ++i){
+		for(int j = 0; j < 3; ++j){
+			float2 inner = 3. * sin(1. * in.uv * float2(i,j));
+			float2 new_uv = in.uv + frac(  inner);
+			int2 swapped = int2(new_uv * 3)%3;
+			distorted[i][j] = abs(transform[swapped.x][swapped.y]);
+			distorted[i][j] = lerp(distorted[i][j], 0, -1) + 0.2;
+		}
+	}
+	float4x4 merge = mul(transform, distorted);
+	color = mul(merge, color) ;
+	color = (color * color );
 	return color; 
 }

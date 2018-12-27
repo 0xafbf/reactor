@@ -21,25 +21,23 @@ struct rGraphicsPipeline
 	
 	array<VkDescriptorSetLayout> descriptor_set_layouts;
 	VkPipelineLayout layout;
-	array<VkDescriptorSet> descriptorSets;
 
-	u32 indexCount;
-	VkBuffer indexBuffer;
-	array<VkBuffer> vertexBuffers;
+};
 
+struct rState {
+	rGraphicsPipeline* pipeline;
+	rGeometry* geometry;
+	array<VkDescriptorSet> descriptor_sets;
 };
 
 rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath);
 
-rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath, rGeometry& geometry);
-
-void rPipelineDraw(rGraphicsPipeline* pipeline, VkCommandBuffer buffer);
-void rPipelineSetGeometry(rGraphicsPipeline& pipeline, rGeometry& geometry);
+void rPipelineDraw(rState* state, VkCommandBuffer buffer);
 
 
 struct rScene
 {
-	array<rGraphicsPipeline*> primitives;
+	array<rState*> primitives;
 };
 
 void rSceneDraw(rScene* scene, VkCommandBuffer buffer);

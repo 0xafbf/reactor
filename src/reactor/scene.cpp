@@ -175,39 +175,6 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 	VkDescriptorSetLayout descriptor_set_layout;
 	VK_CHECK(vkCreateDescriptorSetLayout(r.engine->device, &layout_info, nullptr, &descriptor_set_layout));
 	r.descriptor_set_layouts.push_back(descriptor_set_layout);
-	
-	var pool_sizes = array<VkDescriptorPoolSize>();
-	
-	VkDescriptorPoolSize pool_size;
-	pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	pool_size.descriptorCount = 10;
-	pool_sizes.push_back(pool_size);
-
-	VkDescriptorPoolSize pool_size_2;
-	pool_size_2.type = VK_DESCRIPTOR_TYPE_SAMPLER;
-	pool_size_2.descriptorCount = 10;
-	pool_sizes.push_back(pool_size_2);
-
-	VkDescriptorPoolSize pool_size__22;
-	pool_size__22.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-	pool_size__22.descriptorCount = 10;
-	pool_sizes.push_back(pool_size__22);
-
-	VkDescriptorPoolCreateInfo poolInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-	poolInfo.poolSizeCount = pool_sizes.size();
-	poolInfo.pPoolSizes = pool_sizes.data();
-	poolInfo.maxSets = 100;
-	
-	VkDescriptorPool descriptorPool;
-
-	VK_CHECK(vkCreateDescriptorPool(r.engine->device, &poolInfo, nullptr, &descriptorPool));
-
-	VkDescriptorSetAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-	allocInfo.descriptorPool = descriptorPool;
-	allocInfo.descriptorSetCount = 1;
-	allocInfo.pSetLayouts = &descriptor_set_layout;
-	r.descriptorSets.resize(1);
-	VK_CHECK(vkAllocateDescriptorSets(r.engine->device, &allocInfo, r.descriptorSets.data()));
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
 	pipelineLayoutInfo.setLayoutCount = r.descriptor_set_layouts.size();
@@ -282,34 +249,23 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 
 	return r;
 }
-void rPipelineSetGeometry(rGraphicsPipeline& pipeline, rGeometry& geometry) {
-	pipeline.indexCount = u32(geometry.indices.size());
-	pipeline.vertexBuffers = { geometry.vertexBuffer.buffer };
-	pipeline.indexBuffer = geometry.indexBuffer.buffer;
-}
 
-rGraphicsPipeline rPipeline(rEngine & inEngine, string inPath, rGeometry & geometry) {
-	var r = rPipeline(inEngine, inPath);
-	rPipelineSetGeometry(r, geometry);
-	return r;
-}
-
-
-void rPipelineDraw(rGraphicsPipeline* pipeline, VkCommandBuffer commandBuffer) {
+void rPipelineDraw(rState* state, VkCommandBuffer commandBuffer) {
+	let& pipeline = state->pipeline;
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
 		
 	VkDeviceSize offsets[] = { 0 };
 	
-	vkCmdBindVertexBuffers(commandBuffer, 0, 1, pipeline->vertexBuffers.data(), offsets);
-	vkCmdBindIndexBuffer(commandBuffer, pipeline->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout, 0, 1, pipeline->descriptorSets.data(), 0, nullptr);
-	vkCmdDraw(commandBuffer, pipeline->indexCount, 1, 0, 0);
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, &state->geometry->vertexBuffer.buffer, offsets);
+	vkCmdBindIndexBuffer(commandBuffer, state->geometry->indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout, 0, state->descriptor_sets.size(), state->descriptor_sets.data(), 0, nullptr);
+	vkCmdDraw(commandBuffer, state->geometry->indices.size(), 1, 0, 0);
 }
 
 void rSceneDraw(rScene* scene, VkCommandBuffer buffer) {
-	for (rGraphicsPipeline* pipeline : scene->primitives)
+	for (rState* prim : scene->primitives)
 	{
-		rPipelineDraw(pipeline, buffer);
+		rPipelineDraw(prim, buffer);
 	}
 }
 

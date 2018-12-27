@@ -183,7 +183,7 @@ void rEngineStart(rEngine* engine)
     ImGui::StyleColorsDark();
     // Upload Fonts
     {
-        // Use any command queue
+		// Use any command queue
         VkCommandPool command_pool =  engine->commandPool;
 		
 		VkCommandBufferAllocateInfo bufferInfo = {};
@@ -201,7 +201,7 @@ void rEngineStart(rEngine* engine)
 
         ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
 
-        VkSubmitInfo end_info = {};
+		 VkSubmitInfo end_info = {};
         end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         end_info.commandBufferCount = 1;
         end_info.pCommandBuffers = &command_buffer;
@@ -294,12 +294,12 @@ void createDevice(rEngine& engine) {
 
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 	std::set <u32> indicesSet = { engine.indices.graphicsFamily, engine.indices.presentFamily };
+	float queuePriority = 1.0f;
 	for (u32 idx : indicesSet) {
 		VkDeviceQueueCreateInfo queueCreateInfo = {};
 		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 		queueCreateInfo.queueFamilyIndex = idx;
 		queueCreateInfo.queueCount = 1;
-		float queuePriority = 1.0f;
 		queueCreateInfo.pQueuePriorities = &queuePriority;
 		queueCreateInfos.push_back(queueCreateInfo);
 	}
@@ -337,7 +337,7 @@ void createRenderPasses(rEngine* engine)
 	// load shaders
 	
 	VkAttachmentDescription colorAttachment = {};
-	colorAttachment.format = VK_FORMAT_B8G8R8A8_UNORM;
+	colorAttachment.format = VK_FORMAT_B8G8R8A8_SRGB;
 	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -391,6 +391,9 @@ bool rEngineStartFrame(rEngine& engine)
 {
 	if (!rEngineShouldTick(engine)) return false;
 
+	engine.uptime = ImGui::GetTime();
+	engine.deltaTime = ImGui::GetIO().DeltaTime;
+
 	glfwPollEvents();
 	// this should be handled better for each window I guess.
 	ImGui_ImplGlfw_NewFrame();
@@ -400,13 +403,12 @@ bool rEngineStartFrame(rEngine& engine)
 	return true;
 }
 
-void rEngineEndFrame(rEngine& inEngine)
+void rEngineEndFrame(rEngine& engine)
 {
-	rEngine* engine = &inEngine;
 	ImGui::Render();
 	
-	vkQueueWaitIdle(engine->presentQueue);
-	for (rWindow* window : engine->windows)
+	vkQueueWaitIdle(engine.presentQueue);
+	for (rWindow* window : engine.windows)
 	{
 		if (glfwWindowShouldClose(window->glfwWindow))
 		{
@@ -414,26 +416,18 @@ void rEngineEndFrame(rEngine& inEngine)
 			continue;
 		}
 	}
-	u32 numWindows = u32(engine->windows.size());
+	u32 numWindows = u32(engine.windows.size());
 
 	std::vector<u32> indices;
-	indices.reserve(numWindows);
 	std::vector<VkSwapchainKHR> swapchains;
-	swapchains.reserve(numWindows);
-
 	std::vector<VkSemaphore> windowSemaphores;
-	windowSemaphores.reserve(numWindows);
 
-	for (u32 idx = 0; idx < numWindows; ++idx)
+	for (rWindow* window : engine.windows)
 	{
-		rWindow* window = engine->windows[idx];
-
-		if (rWindowRender(window))
-		{
-			swapchains.push_back(window->swapchain);
-			indices.push_back(window->imageIndex);
-			windowSemaphores.push_back(window->renderFinishedSemaphore);
-		}
+		rWindowRender(window);
+		swapchains.push_back(window->swapchain);
+		indices.push_back(window->imageIndex);
+		windowSemaphores.push_back(window->renderFinishedSemaphore);
 	}
 	if (swapchains.size() > 0)
 	{
@@ -446,7 +440,7 @@ void rEngineEndFrame(rEngine& inEngine)
 		presentInfo.pSwapchains = swapchains.data();
 		presentInfo.pImageIndices = indices.data();
 
-		VkResult present = vkQueuePresentKHR(engine->presentQueue, &presentInfo);
+		VK_CHECK(vkQueuePresentKHR(engine.presentQueue, &presentInfo));
 	}
 }
 
