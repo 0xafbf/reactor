@@ -21,6 +21,14 @@ void rLog(rLogLevel log_level, const string& format, ... )
     let output = string( buf.get(), buf.get() + size - 1 )+'\n'; // We don't want the '\0' inside
 #ifdef WIN32
 	OutputDebugStringA(output.c_str());
+	if (log_level >= rLogLevel::error)
+	{
+		DebugBreak();
+	}
+	if (log_level == rLogLevel::fatal)
+	{
+		exit(1);
+	}
 #else
 	assert(false); //"incomplete"
 	//printf()

@@ -36,7 +36,8 @@ struct rEngine
 	
 	rEngine(string inName);
 	~rEngine();
-	VkDescriptorPool descriptorPool;
+	VkDescriptorPool descriptorPool; // imgui
+	VkDescriptorPool descriptor_pool;
 
 	double deltaTime;
 	float uptime;

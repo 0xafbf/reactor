@@ -4,25 +4,8 @@
 #include "vulkan/vulkan_core.h"
 #include "rmath.h"
 #include "buffer.h"
-
-struct rEngine;
-struct rBuffer;
-struct rGeometry;
-
-
-struct rGraphicsPipeline
-{
-	rEngine* engine;
-	
-	VkShaderModule vertModule;
-	VkShaderModule fragModule;
-	
-	VkPipeline pipeline;
-	
-	array<VkDescriptorSetLayout> descriptor_set_layouts;
-	VkPipelineLayout layout;
-
-};
+#include "pipeline.h"
+#include "geometry.h"
 
 struct rState {
 	rGraphicsPipeline* pipeline;
@@ -30,7 +13,6 @@ struct rState {
 	array<VkDescriptorSet> descriptor_sets;
 };
 
-rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath);
 
 void rPipelineDraw(rState* state, VkCommandBuffer buffer);
 
@@ -41,3 +23,10 @@ struct rScene
 };
 
 void rSceneDraw(rScene* scene, VkCommandBuffer buffer);
+
+void rStateSetDescriptor(VkDevice device, rState& state, u32 binding, rBuffer& buffer, VkDescriptorType descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+
+struct rImage;
+void rStateSetDescriptor(VkDevice device, rState& state, u32 binding, rImage& image, VkDescriptorType descriptor_type);
+
+VkDescriptorSet rDescriptorSet(VkDevice device, VkDescriptorPool descriptor_pool, VkDescriptorSetLayout layout);

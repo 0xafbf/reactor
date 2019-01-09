@@ -39,6 +39,14 @@ void rBufferSync(const rBuffer& buffer)
 	vkUnmapMemory(buffer.engine->device, buffer.memory);
 }
 
+void rBufferFetch(const rBuffer& buffer)
+{
+	void* vk_data;
+	vkMapMemory(buffer.engine->device, buffer.memory, 0, buffer.size, 0, &vk_data);
+	memcpy(buffer.data, vk_data, buffer.size);
+	vkUnmapMemory(buffer.engine->device, buffer.memory);
+}
+
 VkDescriptorBufferInfo rDescriptorBufferInfo(rBuffer & buffer) {
 	VkDescriptorBufferInfo bufferInfo;
 	bufferInfo.buffer = buffer.buffer;

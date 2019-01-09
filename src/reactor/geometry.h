@@ -3,7 +3,9 @@
 #include "tiny_obj_loader.h"
 
 #include "engine.h"
+
 #include "buffer.h"
+#include "types.h"
 #include "rmath.h"
 
 struct rGeometry {

@@ -13,6 +13,7 @@ workspace "reactor"
 		defines { "WIN32" }
 		defines { "_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1"}
 		systemversion "latest"
+		entrypoint "mainCRTStartup"
 
 	filter "configurations:Debug"
 		defines { "DEBUG" }
@@ -52,6 +53,7 @@ project "reactor"
 	includedirs { "deps/tinyobjloader" }
 
 	files { "deps/stb/stb_image.h" }
+	files { "deps/stb/stb_image_write.h" }
 	includedirs { "deps/stb" }
 
 	-- files { "deps/glfw/"}

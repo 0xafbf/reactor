@@ -12,8 +12,8 @@
 #define VK_CHECK(op) assert(op == VK_SUCCESS)
 #define SPV_CHECK(op) assert(op == SPV_REFLECT_RESULT_SUCCESS)
 
-#define let ; const auto
-#define var ; auto
+#define let const auto
+#define var auto
 
 // some convenience typedefs, reactor is made for convenience over compatibility
 

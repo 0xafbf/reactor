@@ -1,3 +1,6 @@
+
+#include "stb_image_write.h"
+
 #include "engine.h"
 
 #include <vector>
@@ -80,8 +83,15 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 
 VkDebugUtilsMessengerEXT callbackHandle;
 VkBool32 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
-
-	ERROR(pCallbackData->pMessage);
+	var level = rLogLevel::debug;
+	switch (messageSeverity)
+	{
+		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT: level = rLogLevel::debug; break;
+		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT: level = rLogLevel::info; break;
+		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT: level = rLogLevel::warn; break;
+		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT: level = rLogLevel::error; break;
+	}
+	LOG(level, pCallbackData->pMessage);
 	//std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl << std::endl;
 	// uncomment for breaking in error
 #ifdef DEBUG_VK_CALLBACK
@@ -183,33 +193,24 @@ void rEngineStart(rEngine* engine)
     ImGui::StyleColorsDark();
     // Upload Fonts
     {
-		// Use any command queue
-        VkCommandPool command_pool =  engine->commandPool;
-		
-		VkCommandBufferAllocateInfo bufferInfo = {};
-		bufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		bufferInfo.commandBufferCount = 1;
-		bufferInfo.commandPool = command_pool;
-		VkCommandBuffer command_buffer;
-		vkAllocateCommandBuffers(engine->device, &bufferInfo, &command_buffer);
-
-		VK_CHECK(vkResetCommandPool(engine->device, command_pool, 0));
-        VkCommandBufferBeginInfo begin_info = {};
-        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-		VK_CHECK(vkBeginCommandBuffer(command_buffer, &begin_info));
-
-        ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
-
-		 VkSubmitInfo end_info = {};
-        end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        end_info.commandBufferCount = 1;
-        end_info.pCommandBuffers = &command_buffer;
-		VK_CHECK(vkEndCommandBuffer(command_buffer));
-		VK_CHECK(vkQueueSubmit(engine->graphicsQueue, 1, &end_info, VK_NULL_HANDLE));
-		VK_CHECK(vkDeviceWaitIdle(engine->device));
+		let command_buffer = beginSingleTimeCommands(*engine);
+		ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+		endSingleTimeCommands(*engine, command_buffer);
         ImGui_ImplVulkan_InvalidateFontUploadObjects();
     }
+
+	
+	var pool_sizes_2 = array<VkDescriptorPoolSize>();
+	pool_sizes_2.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10});
+	pool_sizes_2.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLER, 10});
+	pool_sizes_2.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE , 10 });
+
+	VkDescriptorPoolCreateInfo pool_info_2 = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+	pool_info_2.poolSizeCount = pool_sizes_2.size();
+	pool_info_2.pPoolSizes = pool_sizes_2.data();
+	pool_info_2.maxSets = 100;
+	
+	VK_CHECK(vkCreateDescriptorPool(engine->device, &pool_info_2, nullptr, &engine->descriptor_pool));
 }
 
 void rEngineDestroy(rEngine* engineInst)
@@ -385,7 +386,184 @@ bool rEngineShouldTick(rEngine& engine)
 	}
 	return false;
 }
+void rWindowTakeScreenshot(rWindow* window)
+{
+	var& engine = *window->engine;
 
+	let image_index = window->imageIndex;
+	let swapchain_image = window->swapchainImages[image_index];
+
+	VkFormatProperties formatProps;
+	vkGetPhysicalDeviceFormatProperties(window->engine->physicalDevice, VK_FORMAT_R8G8B8A8_UNORM, &formatProps);
+	if (!(formatProps.linearTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT)) {
+		ERROR("Device does not support blitting from optimal tiled images, using copy instead of blit!");
+	}
+
+	VkImageCreateInfo image_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+	//image_info.flags; VkImageCreateFlags       flags;
+	image_info.imageType = VK_IMAGE_TYPE_2D;
+	image_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+	image_info.extent = VkExtent3D{ window->width, window->height, 1 };
+
+	image_info.mipLevels = 1;
+	image_info.arrayLayers = 1;
+	image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	image_info.tiling = VK_IMAGE_TILING_LINEAR;
+	image_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	VkImage image;
+	
+	VK_CHECK(vkCreateImage(engine.device, &image_info, nullptr, &image));
+
+	VkMemoryRequirements memory_requirements;
+	vkGetImageMemoryRequirements(engine.device, image, &memory_requirements);
+
+	VkMemoryAllocateInfo memory_alloc_info = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+	memory_alloc_info.allocationSize = memory_requirements.size;
+	memory_alloc_info.memoryTypeIndex = rEngineGetMemoryIdx(engine, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+	VkDeviceMemory memory;
+	vkAllocateMemory(engine.device, &memory_alloc_info, nullptr, &memory);
+	vkBindImageMemory(engine.device, image, memory, 0);
+
+	let command_buffer = beginSingleTimeCommands(*window->engine);
+	
+	
+	VkImageMemoryBarrier imageMemoryBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	imageMemoryBarrier.srcAccessMask = 0;
+	imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	imageMemoryBarrier.image = image;
+	imageMemoryBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
+	imageMemoryBarrier.subresourceRange.levelCount = 1;
+	imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
+	imageMemoryBarrier.subresourceRange.layerCount = 1;
+	vkCmdPipelineBarrier( command_buffer,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		0, // dependency flags
+		0, nullptr,  // memory barrier
+		0, nullptr,  // buffer memory barrier
+		1, &imageMemoryBarrier); // image barrier
+
+	imageMemoryBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	imageMemoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+	imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	imageMemoryBarrier.image = swapchain_image;
+	imageMemoryBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
+	imageMemoryBarrier.subresourceRange.levelCount = 1;
+	imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
+	imageMemoryBarrier.subresourceRange.layerCount = 1;
+	vkCmdPipelineBarrier( command_buffer,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		0, // dependency flags
+		0, nullptr,  // memory barrier
+		0, nullptr,  // buffer memory barrier
+		1, &imageMemoryBarrier); // image barrier
+
+	VkOffset3D blit_size;
+	blit_size.x = window->width;
+	blit_size.y = window->height;
+	blit_size.z = 1;
+
+	VkImageBlit blit_region{};
+	blit_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	blit_region.srcSubresource.baseArrayLayer = 0;
+	blit_region.srcSubresource.layerCount = 1;
+	blit_region.srcSubresource.mipLevel = 0;
+	blit_region.srcOffsets[1] = blit_size;
+	blit_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	blit_region.dstSubresource.baseArrayLayer = 0;
+	blit_region.dstSubresource.layerCount = 1;
+	blit_region.dstSubresource.mipLevel = 0;
+	blit_region.dstOffsets[1] = blit_size;
+	vkCmdBlitImage(command_buffer, swapchain_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit_region, VK_FILTER_NEAREST);
+
+	imageMemoryBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	imageMemoryBarrier.srcAccessMask = 0;
+	imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	imageMemoryBarrier.image = image;
+	imageMemoryBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
+	imageMemoryBarrier.subresourceRange.levelCount = 1;
+	imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
+	imageMemoryBarrier.subresourceRange.layerCount = 1;
+	vkCmdPipelineBarrier( command_buffer,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		0, // dependency flags
+		0, nullptr,  // memory barrier
+		0, nullptr,  // buffer memory barrier
+		1, &imageMemoryBarrier); // image barrier
+
+	imageMemoryBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	imageMemoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+	imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	imageMemoryBarrier.image = swapchain_image;
+	imageMemoryBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
+	imageMemoryBarrier.subresourceRange.levelCount = 1;
+	imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
+	imageMemoryBarrier.subresourceRange.layerCount = 1;
+
+	vkCmdPipelineBarrier( command_buffer,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		0, // dependency flags
+		0, nullptr,  // memory barrier
+		0, nullptr,  // buffer memory barrier
+		1, &imageMemoryBarrier); // image barrier
+
+	endSingleTimeCommands(engine, command_buffer);
+
+	VkImageSubresource subresource{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 };
+	VkSubresourceLayout subresource_layout;
+	vkGetImageSubresourceLayout(engine.device, image, &subresource, &subresource_layout);
+	
+	void* data;
+	vkMapMemory(engine.device, memory, 0, VK_WHOLE_SIZE, 0, &data);
+	data = (char*)data + subresource_layout.offset;
+	
+
+	struct color { u8 r, g, b, a; };
+	let size = window->width * window->height * sizeof(color);
+	color* data2 = (color*) malloc(size);
+
+	for (var idx = 0; idx < window->height; ++idx){
+		let y = float(idx) / window->height;
+		let a = idx * window->width;
+		for (var jdx = 0; jdx < window->width; ++jdx) {
+			let x = float(jdx) / window->width;
+			data2[a + jdx].r = x * 255;
+			data2[a + jdx].b = y * 255;
+			data2[a + jdx].a = 255;
+		}
+	}
+	free(data2);
+	data2 = (color*)data;
+	for (var idx = 0; idx < window->height; ++idx){
+		let y = float(idx) / window->height;
+		let a = idx * window->width;
+		for (var jdx = 0; jdx < window->width; ++jdx) {
+			let x = float(jdx) / window->width;
+			//data2[a + jdx].r = x * 255;
+			//data2[a + jdx].b = y * 255;
+			data2[a + jdx].a = 255;
+		}
+	}
+	
+	stbi_write_png("screenshot.png", window->width, window->height, 4, data, window->width * sizeof(color));
+}
 
 bool rEngineStartFrame(rEngine& engine)
 {
@@ -395,6 +573,18 @@ bool rEngineStartFrame(rEngine& engine)
 	engine.deltaTime = ImGui::GetIO().DeltaTime;
 
 	glfwPollEvents();
+
+	var io = ImGui::GetIO();
+
+	if (io.KeysDown[GLFW_KEY_ESCAPE]) {
+		glfwSetWindowShouldClose(engine.windows[0]->glfwWindow, true); // @hack
+	}
+
+	if (io.KeysDown[GLFW_KEY_F9] && (io.KeysDownDuration[GLFW_KEY_F9] == 0.)) {
+		INFO("take screenshot");
+		rWindowTakeScreenshot(engine.windows[0]);
+	}
+
 	// this should be handled better for each window I guess.
 	ImGui_ImplGlfw_NewFrame();
 
