@@ -386,18 +386,12 @@ bool rEngineShouldTick(rEngine& engine)
 	}
 	return false;
 }
-void rWindowTakeScreenshot(rWindow* window)
+rImage& rWindowTakeScreenshot(rWindow* window)
 {
 	var& engine = *window->engine;
 
 	let image_index = window->imageIndex;
 	let swapchain_image = window->swapchainImages[image_index];
-
-	VkFormatProperties formatProps;
-	vkGetPhysicalDeviceFormatProperties(window->engine->physicalDevice, VK_FORMAT_R8G8B8A8_UNORM, &formatProps);
-	if (!(formatProps.linearTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT)) {
-		ERROR("Device does not support blitting from optimal tiled images, using copy instead of blit!");
-	}
 
 	VkImageCreateInfo image_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 	//image_info.flags; VkImageCreateFlags       flags;
@@ -411,12 +405,12 @@ void rWindowTakeScreenshot(rWindow* window)
 	image_info.tiling = VK_IMAGE_TILING_LINEAR;
 	image_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	VkImage image;
+	VkImage screenshot_image;
 	
-	VK_CHECK(vkCreateImage(engine.device, &image_info, nullptr, &image));
+	VK_CHECK(vkCreateImage(engine.device, &image_info, nullptr, &screenshot_image));
 
 	VkMemoryRequirements memory_requirements;
-	vkGetImageMemoryRequirements(engine.device, image, &memory_requirements);
+	vkGetImageMemoryRequirements(engine.device, screenshot_image, &memory_requirements);
 
 	VkMemoryAllocateInfo memory_alloc_info = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
 	memory_alloc_info.allocationSize = memory_requirements.size;
@@ -424,145 +418,140 @@ void rWindowTakeScreenshot(rWindow* window)
 
 	VkDeviceMemory memory;
 	vkAllocateMemory(engine.device, &memory_alloc_info, nullptr, &memory);
-	vkBindImageMemory(engine.device, image, memory, 0);
+	vkBindImageMemory(engine.device, screenshot_image, memory, 0);
 
 	let command_buffer = beginSingleTimeCommands(*window->engine);
 	
 	
-	VkImageMemoryBarrier imageMemoryBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-	imageMemoryBarrier.srcAccessMask = 0;
-	imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	imageMemoryBarrier.image = image;
-	imageMemoryBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
-	imageMemoryBarrier.subresourceRange.levelCount = 1;
-	imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
-	imageMemoryBarrier.subresourceRange.layerCount = 1;
-	vkCmdPipelineBarrier( command_buffer,
-		VK_PIPELINE_STAGE_TRANSFER_BIT,
-		VK_PIPELINE_STAGE_TRANSFER_BIT,
-		0, // dependency flags
-		0, nullptr,  // memory barrier
-		0, nullptr,  // buffer memory barrier
-		1, &imageMemoryBarrier); // image barrier
+	VkImageMemoryBarrier screenshot_barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	screenshot_barrier.image = screenshot_image;
+	screenshot_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	screenshot_barrier.subresourceRange.baseMipLevel = 0;
+	screenshot_barrier.subresourceRange.levelCount = 1;
+	screenshot_barrier.subresourceRange.baseArrayLayer = 0;
+	screenshot_barrier.subresourceRange.layerCount = 1;
 
-	imageMemoryBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-	imageMemoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-	imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-	imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-	imageMemoryBarrier.image = swapchain_image;
-	imageMemoryBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
-	imageMemoryBarrier.subresourceRange.levelCount = 1;
-	imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
-	imageMemoryBarrier.subresourceRange.layerCount = 1;
+	screenshot_barrier.srcAccessMask = 0;
+	screenshot_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	screenshot_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	screenshot_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
 	vkCmdPipelineBarrier( command_buffer,
 		VK_PIPELINE_STAGE_TRANSFER_BIT,
 		VK_PIPELINE_STAGE_TRANSFER_BIT,
 		0, // dependency flags
 		0, nullptr,  // memory barrier
 		0, nullptr,  // buffer memory barrier
-		1, &imageMemoryBarrier); // image barrier
+		1, &screenshot_barrier); // image barrier
+
+	VkImageMemoryBarrier swapchain_image_barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+
+	swapchain_image_barrier.image = swapchain_image;
+	swapchain_image_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	swapchain_image_barrier.subresourceRange.baseMipLevel = 0;
+	swapchain_image_barrier.subresourceRange.levelCount = 1;
+	swapchain_image_barrier.subresourceRange.baseArrayLayer = 0;
+	swapchain_image_barrier.subresourceRange.layerCount = 1;
+
+	swapchain_image_barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	swapchain_image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+	swapchain_image_barrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	swapchain_image_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	vkCmdPipelineBarrier( command_buffer,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		0, // dependency flags
+		0, nullptr,  // memory barrier
+		0, nullptr,  // buffer memory barrier
+		1, &swapchain_image_barrier); // image barrier
 
 	VkOffset3D blit_size;
 	blit_size.x = window->width;
 	blit_size.y = window->height;
 	blit_size.z = 1;
 
-	VkImageBlit blit_region{};
-	blit_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	blit_region.srcSubresource.baseArrayLayer = 0;
-	blit_region.srcSubresource.layerCount = 1;
-	blit_region.srcSubresource.mipLevel = 0;
-	blit_region.srcOffsets[1] = blit_size;
-	blit_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	blit_region.dstSubresource.baseArrayLayer = 0;
-	blit_region.dstSubresource.layerCount = 1;
-	blit_region.dstSubresource.mipLevel = 0;
-	blit_region.dstOffsets[1] = blit_size;
-	vkCmdBlitImage(command_buffer, swapchain_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit_region, VK_FILTER_NEAREST);
+	let supports_blit = false; // TODO this check
+	if (supports_blit)
+	{
+		VkImageBlit blit_region{};
+		blit_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit_region.srcSubresource.baseArrayLayer = 0;
+		blit_region.srcSubresource.layerCount = 1;
+		blit_region.srcSubresource.mipLevel = 0;
+		blit_region.srcOffsets[1] = blit_size;
+		blit_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit_region.dstSubresource.baseArrayLayer = 0;
+		blit_region.dstSubresource.layerCount = 1;
+		blit_region.dstSubresource.mipLevel = 0;
+		blit_region.dstOffsets[1] = blit_size;
+		vkCmdBlitImage(command_buffer, swapchain_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, screenshot_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit_region, VK_FILTER_NEAREST);
+	}
+	else {
+		VkImageCopy image_copy_region = {};
+		image_copy_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		image_copy_region.srcSubresource.layerCount = 1;
+		image_copy_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		image_copy_region.dstSubresource.layerCount = 1;
+		image_copy_region.extent.width = window->width;
+		image_copy_region.extent.height = window->height;
+		image_copy_region.extent.depth = 1;
 
-	imageMemoryBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-	imageMemoryBarrier.srcAccessMask = 0;
-	imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-	imageMemoryBarrier.image = image;
-	imageMemoryBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
-	imageMemoryBarrier.subresourceRange.levelCount = 1;
-	imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
-	imageMemoryBarrier.subresourceRange.layerCount = 1;
+		vkCmdCopyImage(
+			command_buffer, 
+			swapchain_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 
+			screenshot_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
+			1, &image_copy_region);
+	}
+
+
+	screenshot_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	screenshot_barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	screenshot_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	screenshot_barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
 	vkCmdPipelineBarrier( command_buffer,
 		VK_PIPELINE_STAGE_TRANSFER_BIT,
 		VK_PIPELINE_STAGE_TRANSFER_BIT,
 		0, // dependency flags
 		0, nullptr,  // memory barrier
 		0, nullptr,  // buffer memory barrier
-		1, &imageMemoryBarrier); // image barrier
+		1, &screenshot_barrier); // image barrier
 
-	imageMemoryBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-	imageMemoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-	imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-	imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-	imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	imageMemoryBarrier.image = swapchain_image;
-	imageMemoryBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
-	imageMemoryBarrier.subresourceRange.levelCount = 1;
-	imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
-	imageMemoryBarrier.subresourceRange.layerCount = 1;
-
+	swapchain_image_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+	swapchain_image_barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	swapchain_image_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	swapchain_image_barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	vkCmdPipelineBarrier( command_buffer,
 		VK_PIPELINE_STAGE_TRANSFER_BIT,
 		VK_PIPELINE_STAGE_TRANSFER_BIT,
 		0, // dependency flags
 		0, nullptr,  // memory barrier
 		0, nullptr,  // buffer memory barrier
-		1, &imageMemoryBarrier); // image barrier
+		1, &swapchain_image_barrier); // image barrier
 
 	endSingleTimeCommands(engine, command_buffer);
 
 	VkImageSubresource subresource{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 };
 	VkSubresourceLayout subresource_layout;
-	vkGetImageSubresourceLayout(engine.device, image, &subresource, &subresource_layout);
+	vkGetImageSubresourceLayout(engine.device, screenshot_image, &subresource, &subresource_layout);
 	
 	void* data;
 	vkMapMemory(engine.device, memory, 0, VK_WHOLE_SIZE, 0, &data);
 	data = (char*)data + subresource_layout.offset;
-	
-
 	struct color { u8 r, g, b, a; };
-	let size = window->width * window->height * sizeof(color);
-	color* data2 = (color*) malloc(size);
-
-	for (var idx = 0; idx < window->height; ++idx){
-		let y = float(idx) / window->height;
-		let a = idx * window->width;
-		for (var jdx = 0; jdx < window->width; ++jdx) {
-			let x = float(jdx) / window->width;
-			data2[a + jdx].r = x * 255;
-			data2[a + jdx].b = y * 255;
-			data2[a + jdx].a = 255;
-		}
-	}
-	free(data2);
-	data2 = (color*)data;
-	for (var idx = 0; idx < window->height; ++idx){
-		let y = float(idx) / window->height;
-		let a = idx * window->width;
-		for (var jdx = 0; jdx < window->width; ++jdx) {
-			let x = float(jdx) / window->width;
-			//data2[a + jdx].r = x * 255;
-			//data2[a + jdx].b = y * 255;
-			data2[a + jdx].a = 255;
+	color* colors = (color*)data;
+	if (!supports_blit) {
+		for (u32 idx = 0; idx < subresource_layout.size/4; idx++)
+		{
+			color& color = colors[idx];
+			color = { color.b, color.g, color.r, 255 }; // swap red and blue, and set alpha to 1.0
 		}
 	}
 	
-	stbi_write_png("screenshot.png", window->width, window->height, 4, data, window->width * sizeof(color));
+	stbi_write_png("screenshot.png", window->width, window->height, 4, data, window->width * 4);
+
+	rImage image;
+	image.image = screenshot_image;
+	return image;
 }
 
 bool rEngineStartFrame(rEngine& engine)
@@ -574,17 +563,6 @@ bool rEngineStartFrame(rEngine& engine)
 
 	glfwPollEvents();
 
-	var io = ImGui::GetIO();
-
-	if (io.KeysDown[GLFW_KEY_ESCAPE]) {
-		glfwSetWindowShouldClose(engine.windows[0]->glfwWindow, true); // @hack
-	}
-
-	if (io.KeysDown[GLFW_KEY_F9] && (io.KeysDownDuration[GLFW_KEY_F9] == 0.)) {
-		INFO("take screenshot");
-		rWindowTakeScreenshot(engine.windows[0]);
-	}
-
 	// this should be handled better for each window I guess.
 	ImGui_ImplGlfw_NewFrame();
 
@@ -595,6 +573,18 @@ bool rEngineStartFrame(rEngine& engine)
 
 void rEngineEndFrame(rEngine& engine)
 {
+
+	var io = ImGui::GetIO();
+
+	if (io.KeysDown[GLFW_KEY_ESCAPE]) {
+		glfwSetWindowShouldClose(engine.windows[0]->glfwWindow, true); // @hack
+	}
+
+	if (io.KeysDown[GLFW_KEY_F9] && (io.KeysDownDuration[GLFW_KEY_F9] == 0.)) {
+		INFO("take screenshot");
+		let image = rWindowTakeScreenshot(engine.windows[0]);
+	}
+
 	ImGui::Render();
 	
 	vkQueueWaitIdle(engine.presentQueue);

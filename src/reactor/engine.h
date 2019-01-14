@@ -8,6 +8,7 @@
 #include <vector>
 
 
+
 struct QueueFamilyIndices
 {
 	u32 graphicsFamily = -1;
@@ -55,3 +56,5 @@ bool rEngineShouldTick(rEngine& engine);
 bool rEngineStartFrame(rEngine& engine);
 void rEngineEndFrame(rEngine& engine);
 void rEngineMainLoop(rEngine& engine);
+
+struct rImage& rWindowTakeScreenshot(rWindow * window);

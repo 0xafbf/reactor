@@ -38,6 +38,7 @@ int main()
 
 	while ( rEngineStartFrame(engine))
 	{
+
 		rDebug(transform, "transform");
 		transform_mat = rTransformMatrix(transform) * rTransformMatrix(transf2);
 		rDebug(transform_mat, "matrix");

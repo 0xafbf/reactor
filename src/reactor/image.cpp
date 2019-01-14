@@ -16,8 +16,8 @@ void rImageCreate(rImage& image, string location) {
 	let bufferSize = image.width * image.height * 4;
 	var& engine = *image.engine;
 
-	var img = rBuffer(engine, data, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-	rBufferSync(img);
+	var buffer = rBuffer(engine, data, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+	rBufferSync(buffer);
 	stbi_image_free(data);
 	
 	VkImageCreateInfo imageInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
@@ -54,7 +54,26 @@ void rImageCreate(rImage& image, string location) {
 
 	let commandBuffer = beginSingleTimeCommands(engine);
 
-	VkBufferCopy copyRegion = {};
+	VkImageMemoryBarrier memory_barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	memory_barrier.image = image.image;
+	memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	memory_barrier.subresourceRange.baseMipLevel = 0;
+	memory_barrier.subresourceRange.levelCount = 1;
+	memory_barrier.subresourceRange.layerCount = 1;
+
+	memory_barrier.srcAccessMask = 0;
+	memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	memory_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	memory_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+	vkCmdPipelineBarrier(
+		commandBuffer,
+		VK_PIPELINE_STAGE_HOST_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		0,
+		0, nullptr,
+		0, nullptr,
+		1, &memory_barrier);
 
 	VkBufferImageCopy region;
 	region.bufferOffset = 0;
@@ -67,7 +86,22 @@ void rImageCreate(rImage& image, string location) {
 	region.imageOffset = { 0, 0, 0 };
 	region.imageExtent = { u32(image.width), u32(image.height), 1 };
 
-	vkCmdCopyBufferToImage(commandBuffer, img.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+	vkCmdCopyBufferToImage(commandBuffer, buffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+	memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	memory_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	memory_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	vkCmdPipelineBarrier(
+		commandBuffer,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		0,
+		0, nullptr,
+		0, nullptr,
+		1, &memory_barrier);
+
 	endSingleTimeCommands(engine, commandBuffer);
 
 	VkImageViewCreateInfo imageViewInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
