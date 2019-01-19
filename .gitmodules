@@ -7,12 +7,10 @@
 [submodule "deps/tinyobjloader"]
 	path = deps/tinyobjloader
 	url = git@github.com:syoyo/tinyobjloader.git
-[submodule "deps/SPIRV-Reflect"]
-	path = deps/SPIRV-Reflect
-	url = git@github.com:chaoticbob/SPIRV-Reflect.git
 [submodule "deps/stb"]
 	path = deps/stb
 	url = git@github.com:nothings/stb.git
 [submodule "deps/slang"]
 	path = deps/slang
 	url = git@github.com:shader-slang/slang.git
+
