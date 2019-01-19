@@ -14,3 +14,6 @@
 	path = deps/slang
 	url = git@github.com:shader-slang/slang.git
 
+[submodule "external"]
+	path = external
+	url = git@gitlab.com:0xafbf/reactor-external.git
