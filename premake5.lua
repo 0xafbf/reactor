@@ -6,6 +6,7 @@ includeexternal "deps/slang"
 workspace "reactor"
 
 	configurations { "Debug", "Work", "Release" }
+	platforms { "win32", "win64" }
 	
 	files { "premake5.lua" }
 
@@ -36,12 +37,9 @@ project "reactor"
 
 	warnings "Off"
 
-	architecture "x86_64"
-
 	files { "src/**.h", "src/**.cpp" }
 	includedirs { "src/reactor" }
 
-	links { "$(VULKAN_SDK)/lib/vulkan-1" }
 	includedirs { "$(VULKAN_SDK)/include" }
 
 
@@ -84,3 +82,12 @@ project "reactor"
 			"%{wks.location}shaders/%{file.basename}.frag.spv",
 			"%{wks.location}shaders/%{file.basename}.vert.spv"
 		}
+
+	filter "platforms:win32"
+	       architecture "x86"
+	       	links { "$(VULKAN_SDK)/lib32/vulkan-1" }
+
+
+	filter "platforms:win64"
+	       architecture "x86_64"
+	       	links { "$(VULKAN_SDK)/lib/vulkan-1" }

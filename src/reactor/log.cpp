@@ -9,10 +9,13 @@
 #include <debugapi.h>
 #endif
 
-void rLog(rLogLevel log_level, const string& format, ... )
+
+void rLog(rLogLevel log_level, string& format, ... )
 {
+  
+  string fmt = format;
 	va_list args;
-	va_start(args, &format);
+	va_start(args, &fmt);
 
     size_t size = vsnprintf( nullptr, 0, format.c_str(), args ) + 1; // Extra space for '\0'
     std::unique_ptr<char[]> buf( new char[ size ] ); 
