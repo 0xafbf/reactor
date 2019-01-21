@@ -27,7 +27,7 @@ enum class rLogLevel {
 
 #define RLOG_ACTIVE_LEVEL RLOG_LEVEL_WARN
 
-void rLog(rLogLevel log_level, const string& format, ... );
+void rLog(rLogLevel log_level, const string format, ... );
 
 #define LOG(level, ...) rLog(level, __VA_ARGS__)
 #define TRACE(...) LOG(rLogLevel::trace, __VA_ARGS__)

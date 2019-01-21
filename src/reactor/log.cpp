@@ -10,14 +10,12 @@
 #endif
 
 
-void rLog(rLogLevel log_level, string& format, ... )
+void rLog(rLogLevel log_level, const string format, ... )
 {
-  
-  string fmt = format;
-	va_list args;
-	va_start(args, &fmt);
+    	va_list args;
+	va_start(args, format);
 
-    size_t size = vsnprintf( nullptr, 0, format.c_str(), args ) + 1; // Extra space for '\0'
+	size_t size = vsnprintf( nullptr, 0, format.c_str(), args ) + 1; // Extra space for '\0'
     std::unique_ptr<char[]> buf( new char[ size ] ); 
     vsnprintf( buf.get(), size, format.c_str(), args );
 	va_end(args);

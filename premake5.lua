@@ -1,12 +1,10 @@
 
 
-includeexternal "deps/slang"
-
 
 workspace "reactor"
 
 	configurations { "Debug", "Work", "Release" }
-	platforms { "win32", "win64" }
+	platforms { "x86", "x64" }
 	
 	files { "premake5.lua" }
 
@@ -30,8 +28,14 @@ workspace "reactor"
 		optimize "On"
 
 
-	
+includeexternal "deps/slang"
+include "deps/glfw.lua"
+
+targetName = "%{cfg.system}-%{cfg.platform:lower()}"
+
 project "reactor"
+	systemversion "latest"
+		
 	kind "WindowedApp"
 	language "C++"
 
@@ -41,7 +45,6 @@ project "reactor"
 	includedirs { "src/reactor" }
 
 	includedirs { "$(VULKAN_SDK)/include" }
-
 
 	files { "deps/imgui/*.h", "deps/imgui/*.cpp" }
 	files { "deps/imgui/examples/imgui_impl_glfw.*", "deps/imgui/examples/imgui_impl_vulkan.*"}
@@ -55,9 +58,8 @@ project "reactor"
 	includedirs { "deps/stb" }
 
 	-- files { "deps/glfw/"}
-	-- links {"glfw"}
+	links {"glfw"}
 	includedirs { "deps/glfw/include"}
-	links {"deps/glfw/glfw3"}
 	
 	includedirs { "deps/glfw/include"}
 	files { "deps/SPIRV-Reflect/spirv_reflect.*" }
@@ -65,10 +67,10 @@ project "reactor"
 
 	includedirs { "deps/slang" }
 
-	links {"deps/slang/bin/windows-x64/release/slang",
-		"deps/slang/bin/windows-x64/release/slang-glslang"}
-	copylocal {"deps/slang/bin/windows-x64/release/slang",
-		"deps/slang/bin/windows-x64/release/slang-glslang"}
+	links {"deps/slang/bin/"..targetName.."/release/slang",
+		"deps/slang/bin/"..targetName.."/release/slang-glslang"}
+	copylocal {"deps/slang/bin/"..targetName.."/release/slang",
+		"deps/slang/bin/"..targetName.."/release/slang-glslang"}
 
 	includedirs { "deps/slang" }
 	files {"shaders/**.slang" }
@@ -83,11 +85,11 @@ project "reactor"
 			"%{wks.location}shaders/%{file.basename}.vert.spv"
 		}
 
-	filter "platforms:win32"
+	filter "platforms:x86"
 	       architecture "x86"
 	       	links { "$(VULKAN_SDK)/lib32/vulkan-1" }
 
 
-	filter "platforms:win64"
+	filter "platforms:x64"
 	       architecture "x86_64"
 	       	links { "$(VULKAN_SDK)/lib/vulkan-1" }
