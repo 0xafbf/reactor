@@ -2,7 +2,7 @@
 # get submodules
 echo "updating submodules..."
 # this takes a long time, maybe have some cache in place?
-#& git submodule update --init
+& git submodule update --init --recursive
 
 echo "running premake..."
 
