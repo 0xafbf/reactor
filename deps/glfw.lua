@@ -4,16 +4,17 @@
 
 os.chdir("glfw") -- just added this line
 
+group "deps"
 project "glfw"
 	
 	kind "StaticLib"
 	language "C"
-	location "glfw"
     systemversion "latest"
     
 	files {
         "include/GLFW/glfw3.h",
         "include/GLFW/glfw3native.h",
+		"src/internal.h",
         "src/glfw_config.h",
         "src/context.c",
         "src/init.c",
@@ -24,7 +25,6 @@ project "glfw"
     }
     
 	filter "system:windows"
-        buildoptions { "-std=c11", "-lgdi32" }
         staticruntime "On"
         
         files

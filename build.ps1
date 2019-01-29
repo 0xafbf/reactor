@@ -11,5 +11,5 @@ if ((Get-Command "msbuild" -ErrorAction SilentlyContinue) -eq $null) {
 # 
 # & msbuild /m /p:Configuration=Work
 
-& msbuild /m /p:Configuration=Work /p:Platform=win32
+& msbuild /m /p:Configuration=Work /p:Platform=win64
 
