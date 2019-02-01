@@ -15,7 +15,7 @@ mat4 mat4::cam_perspective(float fov, float aspect_ratio, aspect_mode mode, floa
 		aspect_x *= aspect_ratio;
 		break;
 	default:
-		assert(false); // Unimplemented cam mode
+		CHECK(false); // Unimplemented cam mode
 	}
 
 	var r = mat4(0);

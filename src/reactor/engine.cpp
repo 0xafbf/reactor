@@ -4,7 +4,6 @@
 #include "engine.h"
 
 #include <vector>
-#include <assert.h>
 #include <iostream>
 #include <set>
 #include <algorithm>
@@ -53,7 +52,7 @@ std::vector<const char*> getValidationLayers()
 				break;
 			}
 		}
-		assert(layerFound);
+		CHECK(layerFound);
 	}
 	return validationLayers;
 }
@@ -71,13 +70,13 @@ std::vector<const char*> getRequiredExtensions() {
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pCallback) {
 	auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-	assert(func);
+	CHECK(func);
 	return func(instance, pCreateInfo, pAllocator, pCallback);
 }
 
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT callback, const VkAllocationCallbacks* pAllocator) {
 	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-	assert(func);
+	CHECK(func);
 	func(instance, callback, pAllocator);
 }
 
@@ -95,7 +94,7 @@ VkBool32 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, V
 	//std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl << std::endl;
 	// uncomment for breaking in error
 #ifdef DEBUG_VK_CALLBACK
-	assert(messageSeverity < VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT);
+	CHECK(messageSeverity < VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT);
 #endif
 	return VK_FALSE;
 };
@@ -245,7 +244,7 @@ u32 rEngineGetMemoryIdx(rEngine & engine, VkMemoryPropertyFlags flags)
 			mem_idx = idx;
 		}
 	}
-	assert(mem_idx != -1);
+	CHECK(mem_idx != -1);
 	return mem_idx;
 }
 
@@ -273,7 +272,7 @@ bool retrieveDeviceCapabilities(VkPhysicalDevice physicalDevice, QueueFamilyIndi
 void createDevice(rEngine& engine) {
 	uint32_t deviceCount = 0;
 	vkEnumeratePhysicalDevices(engine.instance, &deviceCount, nullptr);
-	assert(deviceCount != 0);
+	CHECK(deviceCount != 0);
 	std::vector<VkPhysicalDevice> devices(deviceCount);
 	vkEnumeratePhysicalDevices(engine.instance, &deviceCount, devices.data());
 	
@@ -285,7 +284,7 @@ void createDevice(rEngine& engine) {
 		}
 	}
 
-	assert(engine.physicalDevice);
+	CHECK(engine.physicalDevice);
 
 
 	uint32_t queueFamilyCount = 0;

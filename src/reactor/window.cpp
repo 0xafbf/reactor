@@ -1,7 +1,6 @@
 #include "window.h"
 #include "engine.h"
 #include <vector>
-#include <assert.h>
 #include <iostream>
 
 #include "vulkan/vulkan.h"
@@ -50,7 +49,7 @@ void rCreateWindow(rWindow* window)
 	
 	VkBool32 bSupported;
 	vkGetPhysicalDeviceSurfaceSupportKHR(engine->physicalDevice, engine->indices.presentFamily, window->surface, &bSupported);
-	assert(bSupported);
+	CHECK(bSupported);
 	
 	VkSurfaceCapabilitiesKHR capabilities;
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(engine->physicalDevice, window->surface, &capabilities);

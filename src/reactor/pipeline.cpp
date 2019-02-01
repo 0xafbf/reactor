@@ -3,6 +3,7 @@
 #include "pipeline.h"
 
 #include "log.h"
+#include "debug.h"
 
 rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 
@@ -18,7 +19,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 	SlangProfileID profileID = spFindProfile(session, "ps_5_0");
 
 	int anyErrors = spCompile(request);
-	assert(anyErrors >= 0);
+	CHECK(anyErrors >= 0);
 	char const* diagnostics = spGetDiagnosticOutput(request);
 
 	INFO("Slang diagnostic err: %d, diagnostic: %s", anyErrors, diagnostics);
@@ -61,7 +62,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 		VkShaderModule* stage_module;
 		if (stage == VK_SHADER_STAGE_VERTEX_BIT) stage_module = &vert_module;
 		if (stage == VK_SHADER_STAGE_FRAGMENT_BIT) stage_module = &frag_module;
-		assert(stage_module);
+		CHECK(stage_module);
 		VK_CHECK(vkCreateShaderModule(r.engine->device, &shader_module_info, nullptr, stage_module));
 
 		VkPipelineShaderStageCreateInfo stage_info = {};

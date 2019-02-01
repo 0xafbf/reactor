@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include "types.h"
+#include "debug.h"
 #include "imgui.h"
 
 
@@ -96,19 +97,19 @@ struct mat4
 
 	float& operator()(u32 idx, u32 jdx)
 	{
-		assert(idx >= 0);
-		assert(jdx >= 0);
-		assert(idx < 4);
-		assert(jdx < 4);
+		CHECK(idx >= 0);
+		CHECK(jdx >= 0);
+		CHECK(idx < 4);
+		CHECK(jdx < 4);
 		return m[idx * 4 + jdx];
 	}
 	
 	const float& operator()(u32 idx, u32 jdx) const
 	{
-		assert(idx >= 0);
-		assert(jdx >= 0);
-		assert(idx < 4);
-		assert(jdx < 4);
+		CHECK(idx >= 0);
+		CHECK(jdx >= 0);
+		CHECK(idx < 4);
+		CHECK(jdx < 4);
 		return m[idx * 4 + jdx];
 	}
 	

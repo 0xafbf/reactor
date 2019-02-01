@@ -11,7 +11,7 @@
 void rImageCreate(rImage& image, string location) {
 
 	unsigned char *data = stbi_load(location.c_str(), &image.width, &image.height, &image.depth, STBI_rgb_alpha);
-	assert(data);
+	CHECK(data);
 	
 	let bufferSize = image.width * image.height * 4;
 	var& engine = *image.engine;

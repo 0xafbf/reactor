@@ -1,7 +1,7 @@
 
 Push-Location $PSScriptRoot
 
-if (-not ${Test-Path external/.git}) {
+if (-not $(Test-Path external/.git)) {
    Write-Host "Project isn't set up, loading setup.ps1"
    & ./setup.ps1
 }
