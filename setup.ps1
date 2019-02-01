@@ -1,5 +1,5 @@
 
-push-location $PSScriptRoot
+Push-Location $PSScriptRoot
 
 # get submodules
 echo "updating submodules..."
@@ -13,7 +13,6 @@ pop-location
 
 
 echo "running premake..."
-
 & ./external/premake/premake5 vs2017 --verbose
 
 pop-location
