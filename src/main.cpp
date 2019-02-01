@@ -1,6 +1,7 @@
 
 #include "reactor.h"
 
+
 int main()
 {
 	var engine = rEngine("My Great App");
@@ -53,18 +54,4 @@ int main()
 	}
 	
 	return 0;
-}
-
-
-
-
-#include <windows.h>
-
-int  WinMain(
-   HINSTANCE hInstance,
-   HINSTANCE hPrevInstance,
-   LPSTR     lpCmdLine,
-   int       nCmdShow
-){
-	return main();
 }

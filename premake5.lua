@@ -1,5 +1,6 @@
 
 
+target_location = "%{wks.location}/bin/%{cfg.shortname}"
 
 workspace "reactor"
 
@@ -9,6 +10,7 @@ workspace "reactor"
 
 	staticruntime "On"
 	systemversion "latest"
+	targetdir (target_location)
 	
 
 	filter { "platforms:x64" }
@@ -39,7 +41,7 @@ workspace "reactor"
 
 
 
-targetName = "%{cfg.system}-%{cfg.platform:lower()}"
+
 
 include "deps/glfw.lua"
 include "deps/slang.lua"

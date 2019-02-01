@@ -3,7 +3,7 @@ push-location $PSScriptRoot
 
 # get submodules
 echo "updating submodules..."
-# this takes a long time, maybe have some cache in place?
+echo "TODO: this takes a long time, maybe have some cache in place?"
 & git submodule update --init
 
 push-location "deps/slang"

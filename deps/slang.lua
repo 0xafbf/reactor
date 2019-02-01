@@ -10,9 +10,6 @@ newoption {
 
 executeBinary = (_OPTIONS["execute-binary"] == "true")
 
-targetName = "%{cfg.system}-%{cfg.platform:lower()}"
-
-
 
 function addSourceDir(sourceDir)
 	
@@ -44,7 +41,7 @@ project "slang-generate"
 	kind "ConsoleApp"
 	uuid "66174227-8541-41FC-A6DF-4764FC66F78E" -- uuid(os.uuid(name .. '|' .. sourceDir))
 	links { "core" }
-	targetdir(targetName)
+	targetdir(target_location)
 
 group "deps/slang"
 project "slang"
