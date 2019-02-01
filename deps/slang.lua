@@ -75,6 +75,13 @@ project "slang-glslang"
 	uuid "C495878A-832C-485B-B347-0998A90CC936"
 	kind "SharedLib"
 	includedirs { "external/glslang" }
+
+	pchheader "pch.h"
+	pchsource "external/glslang/glslang/MachineIndependent/pch.cpp"
+
+	forceincludes "pch.h"
+	includedirs { "external/glslang/glslang/MachineIndependent" }
+
 	defines
 	{
 		"ENABLE_OPT=0",

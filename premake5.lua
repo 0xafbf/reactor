@@ -55,6 +55,12 @@ project "reactor"
 
 	warnings "Off"
 
+
+	pchheader "pch.h"
+	pchsource "src/reactor/pch.cpp"
+
+	forceincludes "pch.h"
+
 	files { "premake5.lua" }
 	files { "src/**.h", "src/**.cpp" }
 	includedirs { "src/reactor" }

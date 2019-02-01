@@ -13,7 +13,7 @@ rGeometry::rGeometry(rEngine& inEngine, string source_path):engine(&inEngine) {
 	indices.resize(vertCount);
 	vertices.resize(vertCount);
 
-	var obj_matrix = mat4(0);
+	auto obj_matrix = mat4(0);
 	obj_matrix(0, 0) = 1.;
 	obj_matrix(1, 2) = 1.;
 	obj_matrix(2, 1) = 1.;

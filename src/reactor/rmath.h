@@ -144,7 +144,7 @@ struct mat4
 	}
 
 	vec3 operator*(const vec3& rhs) const{
-		var r = vec3(0);
+		auto r = vec3(0);
 		let& m = *this;
 		r.x = m(0, 0) * rhs.x + m(1, 0) * rhs.y + m(2, 0) * rhs.z;
 		r.y = m(0, 1) * rhs.x + m(1, 1) * rhs.y + m(2, 1) * rhs.z;
@@ -167,7 +167,7 @@ struct mat4
 
 	static mat4 location(vec3 loc)
 	{
-		var r = mat4(1);
+		auto r = mat4(1);
 		r(3, 0) = loc.x;
 		r(3, 1) = loc.y;
 		r(3, 2) = loc.z;
@@ -183,12 +183,12 @@ struct mat4
 		viewLocation.z = dist * sin(pitch);
 
 		// projection vectors
-		var viewForward = vec3(-viewLocation.x, -viewLocation.y, -viewLocation.z).normalized();
-		var viewUp = vec3(0.0, 0.0, 1.0);
-		var viewRight = vec3::cross(viewUp, viewForward).normalized();
+		auto viewForward = vec3(-viewLocation.x, -viewLocation.y, -viewLocation.z).normalized();
+		auto viewUp = vec3(0.0, 0.0, 1.0);
+		auto viewRight = vec3::cross(viewUp, viewForward).normalized();
 		viewUp = vec3::cross(viewForward, viewRight);
 		
-		var view = mat4(1);
+		auto view = mat4(1);
 		view(0, 0) = viewForward.x;
 		view(0, 1) = viewForward.y;
 		view(0, 2) = viewForward.z;
@@ -219,7 +219,7 @@ struct mat4
 
 	static mat4 screen()
 	{
-		var r = mat4(0.);
+		auto r = mat4(0.);
 		r(0, 2) = 1.;
 		r(1, 0) = 1.;
 		r(2, 1) = -1.;
@@ -297,7 +297,7 @@ inline mat4 rScaleMatrix(vec3 scale) {
 }
 
 inline mat4 rTransformMatrix(const rTransform& transform) {
-	var r = rScaleMatrix(transform.scale);
+	auto r = rScaleMatrix(transform.scale);
 	r = r * rRotateMatrix(transform.rotation);
 	r = r * mat4::location(transform.location);
 	return r;

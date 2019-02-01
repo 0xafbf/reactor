@@ -19,3 +19,4 @@
 #include "commandbuffer.h"
 #include "image.h"
 
+#define test12 12

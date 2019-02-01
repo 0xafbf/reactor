@@ -82,7 +82,7 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 
 VkDebugUtilsMessengerEXT callbackHandle;
 VkBool32 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
-	var level = rLogLevel::debug;
+	auto level = rLogLevel::debug;
 	switch (messageSeverity)
 	{
 		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT: level = rLogLevel::debug; break;
@@ -199,7 +199,7 @@ void rEngineStart(rEngine* engine)
     }
 
 	
-	var pool_sizes_2 = array<VkDescriptorPoolSize>();
+	auto pool_sizes_2 = array<VkDescriptorPoolSize>();
 	pool_sizes_2.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10});
 	pool_sizes_2.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLER, 10});
 	pool_sizes_2.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE , 10 });
@@ -387,7 +387,7 @@ bool rEngineShouldTick(rEngine& engine)
 }
 rImage& rWindowTakeScreenshot(rWindow* window)
 {
-	var& engine = *window->engine;
+	auto& engine = *window->engine;
 
 	let image_index = window->imageIndex;
 	let swapchain_image = window->swapchainImages[image_index];
@@ -573,7 +573,7 @@ bool rEngineStartFrame(rEngine& engine)
 void rEngineEndFrame(rEngine& engine)
 {
 
-	var io = ImGui::GetIO();
+	auto io = ImGui::GetIO();
 
 	if (io.KeysDown[GLFW_KEY_ESCAPE]) {
 		glfwSetWindowShouldClose(engine.windows[0]->glfwWindow, true); // @hack

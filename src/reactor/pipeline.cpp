@@ -47,7 +47,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 		let entry_point_name = "main";  // it seems the compiler always outputs entry point main
 
 		let slang_stage = spReflectionEntryPoint_getStage(entry_point);
-		var stage = VkShaderStageFlagBits(0);
+		auto stage = VkShaderStageFlagBits(0);
 
 		switch (slang_stage) {
 		case SLANG_STAGE_VERTEX: stage = VK_SHADER_STAGE_VERTEX_BIT; break;
@@ -81,7 +81,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 			let layout = spReflectionVariableLayout_GetTypeLayout(param);
 			let category = spReflectionParameter_GetBindingIndex(param);
 			let type = spReflectionTypeLayout_GetType(layout);
-			var stride = 0;
+			auto stride = 0;
 
 			let field_count = spReflectionType_GetFieldCount(type);
 			for (u32 kdx = 0; kdx < field_count; ++kdx) {
@@ -96,7 +96,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 				let elem_type_count = spReflectionType_GetElementCount(elem_type);
 				let elem_arst = spReflectionType_GetScalarType(elem_type);
 
-				var format = VK_FORMAT_R32_SFLOAT;
+				auto format = VK_FORMAT_R32_SFLOAT;
 				if (elem_count == 2) format = VK_FORMAT_R32G32_SFLOAT;
 				if (elem_count == 3) format = VK_FORMAT_R32G32B32_SFLOAT;
 				if (elem_count == 4) format = VK_FORMAT_R32G32B32A32_SFLOAT;
@@ -126,7 +126,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 	vertexInputInfo.vertexAttributeDescriptionCount = input_attributes.size();
 	
 	let parameter_count = spReflection_GetParameterCount(reflection);  // these are all the uniform bindings I guess
-	var layout_bindings = array<VkDescriptorSetLayoutBinding>();
+	auto layout_bindings = array<VkDescriptorSetLayoutBinding>();
 
 	for (u32 idx = 0; idx < parameter_count; ++idx) {
 		let parameter = spReflection_GetParameterByIndex(reflection, idx);
@@ -152,7 +152,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 
 		let kind = spReflectionType_GetKind(type);
 
-		var descriptor_type = VkDescriptorType(0);
+		auto descriptor_type = VkDescriptorType(0);
 		if (kind == SLANG_TYPE_KIND_CONSTANT_BUFFER) descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		if (kind == SLANG_TYPE_KIND_RESOURCE) descriptor_type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 		if (kind == SLANG_TYPE_KIND_SAMPLER_STATE) descriptor_type = VK_DESCRIPTOR_TYPE_SAMPLER;

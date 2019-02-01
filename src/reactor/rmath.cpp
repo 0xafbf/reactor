@@ -18,7 +18,7 @@ mat4 mat4::cam_perspective(float fov, float aspect_ratio, aspect_mode mode, floa
 		CHECK(false); // Unimplemented cam mode
 	}
 
-	var r = mat4(0);
+	auto r = mat4(0);
 	r(0, 0) = -far_plane / (near_plane - far_plane);
 	r(0, 3) = 1.0;
 
@@ -42,7 +42,7 @@ vector3 vector3::normalized() {
 
 void rCameraTick(rOrbitCamera & camera)
 {
-	var io = ImGui::GetIO();
+	auto io = ImGui::GetIO();
 	if (!io.WantCaptureMouse)
 	{
 		if (io.MouseDown[0]) {

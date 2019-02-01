@@ -8,7 +8,6 @@
 #include <fstream>
 
 #define let const auto
-#define var auto
 
 // some convenience typedefs, reactor is made for convenience over compatibility
 

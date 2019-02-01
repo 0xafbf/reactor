@@ -58,7 +58,7 @@ VkDescriptorSet rDescriptorSet(VkDevice device, VkDescriptorPool descriptor_pool
 	allocInfo.descriptorSetCount = 1;
 	allocInfo.pSetLayouts = &layout;
 
-	var descriptor_set = VkDescriptorSet();
+	auto descriptor_set = VkDescriptorSet();
 	VK_CHECK(vkAllocateDescriptorSets(device, &allocInfo, &descriptor_set));
 	return descriptor_set;
 }

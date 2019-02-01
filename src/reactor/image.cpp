@@ -14,9 +14,9 @@ void rImageCreate(rImage& image, string location) {
 	CHECK(data);
 	
 	let bufferSize = image.width * image.height * 4;
-	var& engine = *image.engine;
+	auto& engine = *image.engine;
 
-	var buffer = rBuffer(engine, data, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+	auto buffer = rBuffer(engine, data, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 	rBufferSync(buffer);
 	stbi_image_free(data);
 	
