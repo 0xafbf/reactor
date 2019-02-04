@@ -2,6 +2,18 @@
 #include "reactor.h"
 
 
+
+
+void rDebug(rGraphicsPipeline& graphics_pipeline) {
+	  
+  auto fff = (int*)(&graphics_pipeline.rasterizer.frontFace);
+  if (ImGui::Combo("Front face", fff, "counter clockwise\0clockwise\0"))
+	{
+	  INFO("hey whats up %d", *fff);
+	}
+  
+}
+
 int main()
 {
 	auto engine = rEngine("My Great App");
@@ -39,7 +51,7 @@ int main()
 
 	while ( rEngineStartFrame(engine))
 	{
-
+		rDebug(pipeline);
 		rDebug(transform, "transform");
 		transform_mat = rTransformMatrix(transform) * rTransformMatrix(transf2);
 		rDebug(transform_mat, "matrix");

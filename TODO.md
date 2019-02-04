@@ -15,6 +15,8 @@
 [x] revisar coordenadas obj
 [] tomar screenshots
 [] UI de pipeline
+[] grid primitive
+[] set up pipelines to draw points, lines, fills
 
 
 estoy buscando ideas para implementar en el futuro:

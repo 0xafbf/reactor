@@ -546,6 +546,8 @@ rImage& rWindowTakeScreenshot(rWindow* window)
 		}
 	}
 	
+	INFO("w: %d, h: %d", window->width, window->height);
+
 	stbi_write_png("screenshot.png", window->width, window->height, 4, data, window->width * 4);
 
 	rImage image;
@@ -570,6 +572,8 @@ bool rEngineStartFrame(rEngine& engine)
 	return true;
 }
 
+static bool imgui_debug = false;
+
 void rEngineEndFrame(rEngine& engine)
 {
 
@@ -583,6 +587,15 @@ void rEngineEndFrame(rEngine& engine)
 		INFO("take screenshot");
 		let image = rWindowTakeScreenshot(engine.windows[0]);
 	}
+
+
+	
+	
+	if (io.KeysDown[GLFW_KEY_F10] && (io.KeysDownDuration[GLFW_KEY_F10] == 0.)) {
+		INFO("toggling imgui debug");
+		imgui_debug = !imgui_debug;
+	}
+	ImGui::ShowDemoWindow(&imgui_debug);
 
 	ImGui::Render();
 	

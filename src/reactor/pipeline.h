@@ -11,7 +11,7 @@ struct rGraphicsPipeline
 	
 	array<VkDescriptorSetLayout> descriptor_set_layouts;
 	VkPipelineLayout layout;
-
+	VkPipelineRasterizationStateCreateInfo rasterizer;
 };
 
 
