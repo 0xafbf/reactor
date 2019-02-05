@@ -16,3 +16,15 @@ struct rGraphicsPipeline
 
 
 rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath);
+
+struct rShader {
+
+	array<VkPipelineShaderStageCreateInfo> shader_stages;
+	array<VkVertexInputBindingDescription> input_bindings;
+	array<VkVertexInputAttributeDescription> input_attributes;
+	VkShaderModule vert_module;
+	VkShaderModule frag_module;
+
+	struct SlangReflection* reflection;
+
+};

@@ -5,7 +5,9 @@
 #include "log.h"
 #include "debug.h"
 
-rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
+rShader rShaderNew(VkDevice device, string in_path) {
+
+	rShader r;
 
 	SlangSession* session = spCreateSession(NULL);
 	SlangCompileRequest* request = spCreateCompileRequest(session);
@@ -15,7 +17,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 
 	int translationUnitIndex = spAddTranslationUnit(request, SLANG_SOURCE_LANGUAGE_SLANG, nullptr); // nullptr was "" (empty string)
 
-	spAddTranslationUnitSourceFile(request, translationUnitIndex, inPath.c_str());
+	spAddTranslationUnitSourceFile(request, translationUnitIndex, in_path.c_str());
 	SlangProfileID profileID = spFindProfile(session, "ps_5_0");
 
 	int anyErrors = spCompile(request);
@@ -24,26 +26,15 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 
 	INFO("Slang diagnostic err: %d, diagnostic: %s", anyErrors, diagnostics);
 
-	let reflection = spGetReflection(request);
 
-	rGraphicsPipeline r;
-	r.engine = &inEngine;
-
-
-	array<VkPipelineShaderStageCreateInfo> shader_stages;
-	array<VkVertexInputBindingDescription> input_bindings;
-	array<VkVertexInputAttributeDescription> input_attributes;
-	VkShaderModule vert_module;
-	VkShaderModule frag_module;
-
-
-	int entry_point_count = spReflection_getEntryPointCount(reflection);
+	r.reflection = spGetReflection(request);
+	int entry_point_count = spReflection_getEntryPointCount(r.reflection);
 	for (u32 idx = 0; idx < entry_point_count; idx++)
 	{
 		int entry_point_index = idx;
 		size_t code_size;
 		let code = spGetEntryPointCode(request, entry_point_index, &code_size);
-		let entry_point = spReflection_getEntryPointByIndex(reflection,entry_point_index);
+		let entry_point = spReflection_getEntryPointByIndex(r.reflection, entry_point_index);
 		let entry_point_name = "main";  // it seems the compiler always outputs entry point main
 
 		let slang_stage = spReflectionEntryPoint_getStage(entry_point);
@@ -57,20 +48,20 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 		VkShaderModuleCreateInfo shader_module_info = {};
 		shader_module_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 		shader_module_info.codeSize = code_size;
-		shader_module_info.pCode = (u32*)code;	
+		shader_module_info.pCode = (u32*)code;
 
 		VkShaderModule* stage_module;
-		if (stage == VK_SHADER_STAGE_VERTEX_BIT) stage_module = &vert_module;
-		if (stage == VK_SHADER_STAGE_FRAGMENT_BIT) stage_module = &frag_module;
+		if (stage == VK_SHADER_STAGE_VERTEX_BIT) stage_module = &r.vert_module;
+		if (stage == VK_SHADER_STAGE_FRAGMENT_BIT) stage_module = &r.frag_module;
 		CHECK(stage_module);
-		VK_CHECK(vkCreateShaderModule(r.engine->device, &shader_module_info, nullptr, stage_module));
+		VK_CHECK(vkCreateShaderModule(device, &shader_module_info, nullptr, stage_module));
 
 		VkPipelineShaderStageCreateInfo stage_info = {};
 		stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		stage_info.stage = stage;
 		stage_info.module = *stage_module;
 		stage_info.pName = entry_point_name;
-		shader_stages.push_back(stage_info);
+		r.shader_stages.push_back(stage_info);
 
 		u32 param_count = spReflectionEntryPoint_getParameterCount(entry_point);
 		for (u32 jdx = 0; jdx < param_count; ++jdx) {
@@ -106,7 +97,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 				attribute_description.format = format;
 				attribute_description.location = kdx;
 				attribute_description.offset = stride;
-				input_attributes.push_back(attribute_description);
+				r.input_attributes.push_back(attribute_description);
 
 				stride += elem_count * 4;
 			}
@@ -115,21 +106,36 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 			binding_description.stride = stride;
 			binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-			input_bindings.push_back(binding_description);
+			r.input_bindings.push_back(binding_description);
 		}
 	}
 
-	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-	vertexInputInfo.vertexBindingDescriptionCount = input_bindings.size();
-	vertexInputInfo.pVertexBindingDescriptions = input_bindings.data();
-	vertexInputInfo.pVertexAttributeDescriptions = input_attributes.data();
-	vertexInputInfo.vertexAttributeDescriptionCount = input_attributes.size();
+	return r;
+}
+
+VkPipelineVertexInputStateCreateInfo rVertexInputInfo(rShader& shader)
+{
+	VkPipelineVertexInputStateCreateInfo vertexInputInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+	vertexInputInfo.vertexBindingDescriptionCount = shader.input_bindings.size();
+	vertexInputInfo.pVertexBindingDescriptions = shader.input_bindings.data();
+	vertexInputInfo.pVertexAttributeDescriptions = shader.input_attributes.data();
+	vertexInputInfo.vertexAttributeDescriptionCount = shader.input_attributes.size();
+	return vertexInputInfo;
+}
+
+rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
+
+	rGraphicsPipeline r;
+	r.engine = &inEngine;
+
+
+	auto shader = rShaderNew(inEngine.device, inPath);
 	
-	let parameter_count = spReflection_GetParameterCount(reflection);  // these are all the uniform bindings I guess
+	let parameter_count = spReflection_GetParameterCount(shader.reflection);  // these are all the uniform bindings I guess
 	auto layout_bindings = array<VkDescriptorSetLayoutBinding>();
 
 	for (u32 idx = 0; idx < parameter_count; ++idx) {
-		let parameter = spReflection_GetParameterByIndex(reflection, idx);
+		let parameter = spReflection_GetParameterByIndex(shader.reflection, idx);
 		let binding = spReflectionParameter_GetBindingIndex(parameter);
 
 		let variable = spReflectionVariableLayout_GetVariable(parameter);
@@ -230,9 +236,12 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 	dynamicState.dynamicStateCount = u32(dynamicStateEnables.size());
 
 	VkGraphicsPipelineCreateInfo pipelineCreateInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
-	pipelineCreateInfo.stageCount = 2;
-	pipelineCreateInfo.pStages = shader_stages.data();
-	pipelineCreateInfo.pVertexInputState = &vertexInputInfo;
+	
+	pipelineCreateInfo.stageCount = shader.shader_stages.size();
+	pipelineCreateInfo.pStages = shader.shader_stages.data();
+	auto vertex_input_info = rVertexInputInfo(shader);
+	pipelineCreateInfo.pVertexInputState = &vertex_input_info;
+
 	pipelineCreateInfo.pInputAssemblyState = &inputAssembly;
 	pipelineCreateInfo.pViewportState = &viewportState;
 	pipelineCreateInfo.pRasterizationState = &rasterizer;
