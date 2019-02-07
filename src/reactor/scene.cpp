@@ -73,7 +73,45 @@ void rPipelineDraw(rState* state, VkCommandBuffer commandBuffer) {
 	
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, &state->geometry->vertexBuffer.buffer, offsets);
 	vkCmdBindIndexBuffer(commandBuffer, state->geometry->indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout, 0, state->descriptor_sets.size(), state->descriptor_sets.data(), 0, nullptr);
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->shader.layout, 0, state->descriptor_sets.size(), state->descriptor_sets.data(), 0, nullptr);
 	vkCmdDraw(commandBuffer, state->geometry->indices.size(), 1, 0, 0);
 }
 
+
+
+
+bool rDebug(VkPipelineRasterizationStateCreateInfo& rasterizer) {
+	bool changed = false;
+	changed |= ImGui::DragFloat("line width", &rasterizer.lineWidth, 0.1, 0, 64);
+	changed |= rDebugCombo("front face", &rasterizer.frontFace, { "counter-clockwise", "clockwise" });
+	changed |= rDebugCombo("cull mode", &rasterizer.cullMode, { "none", "front", "back", "front and back" });
+	changed |= rDebugCombo("polygon mode", &rasterizer.polygonMode, { "fill", "line", "point" });
+
+	return changed;
+}
+
+bool rDebug(VkPipelineInputAssemblyStateCreateInfo& input_assembly) {
+	bool changed = false;
+	changed |= rDebugCombo("topology", &input_assembly.topology, {
+		"point list",
+		"line list",
+		"line strip",
+		"triangle list",
+		"triangle strip",
+		"triangle fan",
+		"line list with adjacency",
+		"line strip with adjacency",
+		"triangle list with adjacency",
+		"triangle strip with adjacency",
+		});
+	return changed;
+}
+
+void rDebug(rGraphicsPipeline& graphics_pipeline) {
+	bool pipeline_changed = false;
+	pipeline_changed |= rDebug(graphics_pipeline.rasterizer);
+	pipeline_changed |= rDebug(graphics_pipeline.input_assembly);
+	if (pipeline_changed) {
+		rPipelineUpdate(graphics_pipeline);
+	}
+}

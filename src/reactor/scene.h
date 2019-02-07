@@ -30,3 +30,6 @@ struct rImage;
 void rStateSetDescriptor(VkDevice device, rState& state, u32 binding, rImage& image, VkDescriptorType descriptor_type);
 
 VkDescriptorSet rDescriptorSet(VkDevice device, VkDescriptorPool descriptor_pool, VkDescriptorSetLayout layout);
+
+
+void rDebug(rGraphicsPipeline& graphics_pipeline);

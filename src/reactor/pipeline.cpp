@@ -5,6 +5,54 @@
 #include "log.h"
 #include "debug.h"
 
+
+array<VkDescriptorSetLayoutBinding> rDescriptorLayoutBindings(rShader& shader) {
+
+	let parameter_count = spReflection_GetParameterCount(shader.reflection);  // these are all the uniform bindings I guess
+	array<VkDescriptorSetLayoutBinding> layout_bindings;
+
+	for (u32 idx = 0; idx < parameter_count; ++idx) {
+		let parameter = spReflection_GetParameterByIndex(shader.reflection, idx);
+		let binding = spReflectionParameter_GetBindingIndex(parameter);
+
+		let variable = spReflectionVariableLayout_GetVariable(parameter);
+		let variable_name = spReflectionVariable_GetName(variable);
+
+		let layout = spReflectionVariableLayout_GetTypeLayout(parameter);
+		let type = spReflectionTypeLayout_GetType(layout);
+		let type_name = spReflectionType_GetName(type);
+
+		INFO("layouts variable %s : %s index %d", variable_name, type_name, binding);
+
+		let category_count = spReflectionTypeLayout_GetCategoryCount(layout); // seems always 1
+		let elem_type_layout = spReflectionTypeLayout_GetElementTypeLayout(layout);
+		let elem_var_layout = spReflectionTypeLayout_GetElementVarLayout(layout);
+
+		let category = spReflectionTypeLayout_GetParameterCategory(layout);
+		if (category == SLANG_PARAMETER_CATEGORY_UNIFORM) continue;// INFO("uniform");
+		if (category == SLANG_PARAMETER_CATEGORY_DESCRIPTOR_TABLE_SLOT) INFO("descriptor table slot");
+		let size = spReflectionTypeLayout_GetSize(layout, category);
+
+		let kind = spReflectionType_GetKind(type);
+
+		auto descriptor_type = VkDescriptorType(0);
+		if (kind == SLANG_TYPE_KIND_CONSTANT_BUFFER) descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		if (kind == SLANG_TYPE_KIND_RESOURCE) descriptor_type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		if (kind == SLANG_TYPE_KIND_SAMPLER_STATE) descriptor_type = VK_DESCRIPTOR_TYPE_SAMPLER;
+
+		VkDescriptorSetLayoutBinding layout_binding;
+		layout_binding.binding = binding;
+		layout_binding.descriptorCount = 1;
+		layout_binding.descriptorType = descriptor_type;
+		layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+		layout_binding.pImmutableSamplers = nullptr;
+		layout_bindings.push_back(layout_binding);
+	}
+	return layout_bindings;
+}
+
+
+
 rShader rShaderNew(VkDevice device, string in_path) {
 
 	rShader r;
@@ -110,6 +158,23 @@ rShader rShaderNew(VkDevice device, string in_path) {
 		}
 	}
 
+	auto layout_bindings = rDescriptorLayoutBindings(r);
+
+
+	VkDescriptorSetLayoutCreateInfo layout_info = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+	//layout_info.flags = 0
+	layout_info.pBindings = layout_bindings.data();
+	layout_info.bindingCount = layout_bindings.size();
+
+	VkDescriptorSetLayout descriptor_set_layout;
+	VK_CHECK(vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &descriptor_set_layout));
+	r.descriptor_set_layouts.push_back(descriptor_set_layout);
+
+	VkPipelineLayoutCreateInfo pipelineLayoutInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+	pipelineLayoutInfo.setLayoutCount = r.descriptor_set_layouts.size();
+	pipelineLayoutInfo.pSetLayouts = r.descriptor_set_layouts.data();
+	VK_CHECK(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &r.layout));
+
 	return r;
 }
 
@@ -128,64 +193,11 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 	rGraphicsPipeline r;
 	r.engine = &inEngine;
 
-
-	auto shader = rShaderNew(inEngine.device, inPath);
+	r.shader = rShaderNew(inEngine.device, inPath);
 	
-	let parameter_count = spReflection_GetParameterCount(shader.reflection);  // these are all the uniform bindings I guess
-	auto layout_bindings = array<VkDescriptorSetLayoutBinding>();
 
-	for (u32 idx = 0; idx < parameter_count; ++idx) {
-		let parameter = spReflection_GetParameterByIndex(shader.reflection, idx);
-		let binding = spReflectionParameter_GetBindingIndex(parameter);
-
-		let variable = spReflectionVariableLayout_GetVariable(parameter);
-		let variable_name = spReflectionVariable_GetName(variable);
-
-		let layout = spReflectionVariableLayout_GetTypeLayout(parameter);
-		let type = spReflectionTypeLayout_GetType(layout);
-		let type_name = spReflectionType_GetName(type);
-
-		INFO("layouts variable %s : %s index %d", variable_name, type_name, binding);
-		
-		let category_count = spReflectionTypeLayout_GetCategoryCount(layout); // seems always 1
-		let elem_type_layout = spReflectionTypeLayout_GetElementTypeLayout(layout);
-		let elem_var_layout = spReflectionTypeLayout_GetElementVarLayout(layout);
-
-		let category = spReflectionTypeLayout_GetParameterCategory(layout);
-		if (category == SLANG_PARAMETER_CATEGORY_UNIFORM) continue;// INFO("uniform");
-		if (category == SLANG_PARAMETER_CATEGORY_DESCRIPTOR_TABLE_SLOT) INFO("descriptor table slot");
-		let size = spReflectionTypeLayout_GetSize(layout, category);
-
-		let kind = spReflectionType_GetKind(type);
-
-		auto descriptor_type = VkDescriptorType(0);
-		if (kind == SLANG_TYPE_KIND_CONSTANT_BUFFER) descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		if (kind == SLANG_TYPE_KIND_RESOURCE) descriptor_type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		if (kind == SLANG_TYPE_KIND_SAMPLER_STATE) descriptor_type = VK_DESCRIPTOR_TYPE_SAMPLER;
-
-		VkDescriptorSetLayoutBinding layout_binding;
-		layout_binding.binding = binding;
-		layout_binding.descriptorCount = 1;
-		layout_binding.descriptorType = descriptor_type;
-		layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-		layout_binding.pImmutableSamplers = nullptr;
-		layout_bindings.push_back(layout_binding);
-	}
-	VkDescriptorSetLayoutCreateInfo layout_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-	//layout_info.flags = 0
-	layout_info.pBindings = layout_bindings.data();
-	layout_info.bindingCount = layout_bindings.size();
-
-	VkDescriptorSetLayout descriptor_set_layout;
-	VK_CHECK(vkCreateDescriptorSetLayout(r.engine->device, &layout_info, nullptr, &descriptor_set_layout));
-	r.descriptor_set_layouts.push_back(descriptor_set_layout);
-
-	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-	pipelineLayoutInfo.setLayoutCount = r.descriptor_set_layouts.size();
-	pipelineLayoutInfo.pSetLayouts = r.descriptor_set_layouts.data();
-	VK_CHECK(vkCreatePipelineLayout(r.engine->device, &pipelineLayoutInfo, nullptr, &r.layout));
-
-	VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
+	
+	auto& inputAssembly = r.input_assembly;
 	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	//inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
@@ -224,8 +236,6 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 	colorBlendInfo.attachmentCount = 1;
 	colorBlendInfo.pAttachments = &colorBlendAttachment;
 
-	
-
 	array<VkDynamicState> dynamicStateEnables;
 	dynamicStateEnables.push_back(VK_DYNAMIC_STATE_VIEWPORT);
 	dynamicStateEnables.push_back(VK_DYNAMIC_STATE_SCISSOR);
@@ -237,17 +247,16 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 
 	VkGraphicsPipelineCreateInfo pipelineCreateInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
 	
-	pipelineCreateInfo.stageCount = shader.shader_stages.size();
-	pipelineCreateInfo.pStages = shader.shader_stages.data();
-	auto vertex_input_info = rVertexInputInfo(shader);
+	pipelineCreateInfo.stageCount = r.shader.shader_stages.size();
+	pipelineCreateInfo.pStages = r.shader.shader_stages.data();
+	auto vertex_input_info = rVertexInputInfo(r.shader);
 	pipelineCreateInfo.pVertexInputState = &vertex_input_info;
-
 	pipelineCreateInfo.pInputAssemblyState = &inputAssembly;
 	pipelineCreateInfo.pViewportState = &viewportState;
 	pipelineCreateInfo.pRasterizationState = &rasterizer;
 	pipelineCreateInfo.pMultisampleState = &multisampling;
 	pipelineCreateInfo.pColorBlendState = &colorBlendInfo;
-	pipelineCreateInfo.layout = r.layout;
+	pipelineCreateInfo.layout = r.shader.layout;
 	pipelineCreateInfo.renderPass = r.engine->primitivesRenderPass;
 	pipelineCreateInfo.subpass = 0;
 	pipelineCreateInfo.pDynamicState = &dynamicState;
@@ -255,4 +264,69 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 	VK_CHECK(vkCreateGraphicsPipelines(r.engine->device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &r.pipeline));
 
 	return r;
+}
+
+void rPipelineUpdate(rGraphicsPipeline & pipeline)
+{
+	auto& r = pipeline;
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
+	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	//inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+	inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+	VkPipelineViewportStateCreateInfo viewportState = {};
+	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportState.viewportCount = 1;
+	viewportState.scissorCount = 1;
+
+
+
+	VkPipelineMultisampleStateCreateInfo multisampling = {};
+	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampling.sampleShadingEnable = false;
+	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+	colorBlendAttachment.colorWriteMask =
+		VK_COLOR_COMPONENT_R_BIT |
+		VK_COLOR_COMPONENT_G_BIT |
+		VK_COLOR_COMPONENT_B_BIT |
+		VK_COLOR_COMPONENT_A_BIT;
+	colorBlendAttachment.blendEnable = VK_FALSE;
+
+	VkPipelineColorBlendStateCreateInfo colorBlendInfo = {};
+	colorBlendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlendInfo.logicOpEnable = false;
+	colorBlendInfo.attachmentCount = 1;
+	colorBlendInfo.pAttachments = &colorBlendAttachment;
+
+	array<VkDynamicState> dynamicStateEnables;
+	dynamicStateEnables.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+	dynamicStateEnables.push_back(VK_DYNAMIC_STATE_SCISSOR);
+
+	VkPipelineDynamicStateCreateInfo dynamicState = {};
+	dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	dynamicState.pDynamicStates = dynamicStateEnables.data();
+	dynamicState.dynamicStateCount = u32(dynamicStateEnables.size());
+
+	VkGraphicsPipelineCreateInfo pipelineCreateInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+
+	pipelineCreateInfo.stageCount = r.shader.shader_stages.size();
+	pipelineCreateInfo.pStages = r.shader.shader_stages.data();
+	auto vertex_input_info = rVertexInputInfo(r.shader);
+	pipelineCreateInfo.pVertexInputState = &vertex_input_info;
+	pipelineCreateInfo.pInputAssemblyState = &inputAssembly;
+	pipelineCreateInfo.pViewportState = &viewportState;
+	pipelineCreateInfo.pRasterizationState = &r.rasterizer;
+	pipelineCreateInfo.pMultisampleState = &multisampling;
+	pipelineCreateInfo.pColorBlendState = &colorBlendInfo;
+	pipelineCreateInfo.layout = r.shader.layout;
+	pipelineCreateInfo.renderPass = r.engine->primitivesRenderPass;
+	pipelineCreateInfo.subpass = 0;
+	pipelineCreateInfo.pDynamicState = &dynamicState;
+
+	VK_CHECK(vkCreateGraphicsPipelines(r.engine->device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &r.pipeline));
+
+
 }

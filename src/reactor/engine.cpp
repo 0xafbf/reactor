@@ -572,7 +572,6 @@ bool rEngineStartFrame(rEngine& engine)
 	return true;
 }
 
-static bool imgui_debug = false;
 
 void rEngineEndFrame(rEngine& engine)
 {
@@ -591,11 +590,8 @@ void rEngineEndFrame(rEngine& engine)
 
 	
 	
-	if (io.KeysDown[GLFW_KEY_F10] && (io.KeysDownDuration[GLFW_KEY_F10] == 0.)) {
-		INFO("toggling imgui debug");
-		imgui_debug = !imgui_debug;
-	}
-	ImGui::ShowDemoWindow(&imgui_debug);
+	bool imgui_debug = false;
+	//ImGui::ShowDemoWindow(&imgui_debug);
 
 	ImGui::Render();
 	

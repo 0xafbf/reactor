@@ -276,7 +276,8 @@ bool rWindowRender(rWindow* window)
 	submitInfo.pSignalSemaphores = &window->renderFinishedSemaphore;
 
 	VK_CHECK(vkQueueSubmit(window->engine->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE));
-	
+
+
 	return true;
 }
 
