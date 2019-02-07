@@ -270,12 +270,6 @@ void rPipelineUpdate(rGraphicsPipeline & pipeline)
 {
 	auto& r = pipeline;
 
-	VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
-	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-	//inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-	inputAssembly.primitiveRestartEnable = VK_FALSE;
-
 	VkPipelineViewportStateCreateInfo viewportState = {};
 	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	viewportState.viewportCount = 1;
@@ -316,7 +310,7 @@ void rPipelineUpdate(rGraphicsPipeline & pipeline)
 	pipelineCreateInfo.pStages = r.shader.shader_stages.data();
 	auto vertex_input_info = rVertexInputInfo(r.shader);
 	pipelineCreateInfo.pVertexInputState = &vertex_input_info;
-	pipelineCreateInfo.pInputAssemblyState = &inputAssembly;
+	pipelineCreateInfo.pInputAssemblyState = &r.input_assembly;
 	pipelineCreateInfo.pViewportState = &viewportState;
 	pipelineCreateInfo.pRasterizationState = &r.rasterizer;
 	pipelineCreateInfo.pMultisampleState = &multisampling;

@@ -33,3 +33,4 @@ VkDescriptorSet rDescriptorSet(VkDevice device, VkDescriptorPool descriptor_pool
 
 
 void rDebug(rGraphicsPipeline& graphics_pipeline);
+
