@@ -4,7 +4,9 @@
 
 #include "types.h"
 #include "debug.h"
-#include "imgui.h"
+
+// TODO move this to another place, with rDebug functions too.
+#include "gui.h"
 
 
 // just placed here to bring these constants to where they can be looked for, and remove M_ prefix
@@ -31,6 +33,9 @@ struct vector2
 {
 	float x;
 	float y;
+	vector2() {}
+	vector2(float scale): x(scale), y(scale) {}
+	vector2(float _x, float _y): x(_x), y(_y) {}
 };
 typedef vector2 vec2;
 
@@ -87,7 +92,8 @@ struct mat4
 	mat4(float scale) {
 		let size = sizeof(float) * 16;
 		memset(m, 0, size);
-		m[0] = m[5] = m[10] = m[15] = scale;
+		m[0] = m[5] = m[10] = scale;
+		m[15] = 1.;
 	}
 	
 	float& operator[](u32 idx)

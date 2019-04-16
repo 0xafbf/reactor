@@ -25,7 +25,7 @@ enum class rLogLevel {
 #define RLOG_LEVEL_FATAL rLogLevel::fatal
 
 
-#define RLOG_ACTIVE_LEVEL RLOG_LEVEL_WARN
+#define RLOG_ACTIVE_LEVEL RLOG_ACTIVE_LEVEL_TRACE
 
 void rLog(rLogLevel log_level, const string format, ... );
 

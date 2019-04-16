@@ -5,9 +5,7 @@
 #include "types.h"
 #include "debug.h"
 
-#define IM_ASSERT CHECK
-#define STBTT_assert CHECK
-#include "imgui.h"
+#include "gui.h"
 
 // engine stuff
 #include "rmath.h"
@@ -19,4 +17,3 @@
 #include "commandbuffer.h"
 #include "image.h"
 
-#define test12 12

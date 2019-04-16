@@ -13,7 +13,7 @@
 
 #include "vulkan/vulkan.h"
 #include "GLFW/glfw3.h"
-#include "imgui.h"
+#include "gui.h"
 
 #include "types.h"
 #include "window.h"
@@ -93,6 +93,7 @@ VkBool32 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, V
 	LOG(level, pCallbackData->pMessage);
 	//std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl << std::endl;
 	// uncomment for breaking in error
+#define DEBUG_VK_CALLBACK
 #ifdef DEBUG_VK_CALLBACK
 	CHECK(messageSeverity < VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT);
 #endif
@@ -103,8 +104,15 @@ void setupDebugCallback(VkInstance instance) {
 	
 	VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-	createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-	createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+	createInfo.messageSeverity = 
+		//VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+		//VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+		VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+		VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+	createInfo.messageType =
+		VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+		VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+		VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 	createInfo.pfnUserCallback = (PFN_vkDebugUtilsMessengerCallbackEXT)debugCallback;
 
 	VK_CHECK(CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &callbackHandle));
@@ -175,6 +183,11 @@ void rEngineStart(rEngine* engine)
 	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	poolInfo.queueFamilyIndex = engine->indices.graphicsFamily;
 	VK_CHECK(vkCreateCommandPool(engine->device, &poolInfo, nullptr, &engine->commandPool));
+
+	ImGui::CreateContext();
+
+	auto& io = ImGui::GetIO();
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	
 	ImGui_ImplVulkan_InitInfo init_info = {};
 	init_info.Instance = engine->instance;
@@ -184,25 +197,28 @@ void rEngineStart(rEngine* engine)
 	init_info.Queue = engine->graphicsQueue;
 	//init_info.PipelineCache = g_PipelineCache;
 	init_info.DescriptorPool = engine->descriptorPool;
+	init_info.MinImageCount = 2;
+	init_info.ImageCount = 2;
 	//init_info.Allocator = g_Allocator;
 	//init_info.CheckVkResultFn = check_vk_result;
 	ImGui_ImplVulkan_Init(&init_info, engine->primitivesRenderPass);
 	
-	ImGui::CreateContext();
     ImGui::StyleColorsDark();
     // Upload Fonts
     {
 		let command_buffer = beginSingleTimeCommands(*engine);
 		ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
 		endSingleTimeCommands(*engine, command_buffer);
-        ImGui_ImplVulkan_InvalidateFontUploadObjects();
+        ImGui_ImplVulkan_DestroyFontUploadObjects();
+
     }
 
 	
 	auto pool_sizes_2 = array<VkDescriptorPoolSize>();
-	pool_sizes_2.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10});
-	pool_sizes_2.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLER, 10});
-	pool_sizes_2.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE , 10 });
+	pool_sizes_2.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100});
+	pool_sizes_2.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLER, 100});
+	pool_sizes_2.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE , 100 });
+	pool_sizes_2.push_back(VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 });
 
 	VkDescriptorPoolCreateInfo pool_info_2 = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
 	pool_info_2.poolSizeCount = pool_sizes_2.size();
@@ -569,6 +585,26 @@ bool rEngineStartFrame(rEngine& engine)
 
 	ImGui::NewFrame();
 
+	// because it would be confusing to have two docking targets within each others.
+	ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
+	ImGui::SetNextWindowPos(viewport->Pos);
+	ImGui::SetNextWindowSize(viewport->Size);
+	ImGui::SetNextWindowViewport(viewport->ID);
+	//ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+	//ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+	window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+	window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+	window_flags |= ImGuiWindowFlags_NoBackground;
+	
+	// ideally, this should be per window?
+	static bool dockspace_open = true;
+	ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
+	dockspace_flags |= ImGuiDockNodeFlags_PassthruCentralNode;
+	ImGui::Begin("dockspace window", &dockspace_open, window_flags);
+	let id = ImGui::GetID("MainWindowDockspace");
+	ImGui::DockSpace(id, ImVec2(0,0), dockspace_flags);
+	ImGui::End();
 	return true;
 }
 
@@ -582,6 +618,7 @@ void rEngineEndFrame(rEngine& engine)
 		glfwSetWindowShouldClose(engine.windows[0]->glfwWindow, true); // @hack
 	}
 
+
 	if (io.KeysDown[GLFW_KEY_F9] && (io.KeysDownDuration[GLFW_KEY_F9] == 0.)) {
 		INFO("take screenshot");
 		let image = rWindowTakeScreenshot(engine.windows[0]);
@@ -590,8 +627,16 @@ void rEngineEndFrame(rEngine& engine)
 
 	
 	
-	bool imgui_debug = false;
-	//ImGui::ShowDemoWindow(&imgui_debug);
+	static bool imgui_debug = false;
+
+	ImGui::BeginMainMenuBar();
+	ImGui::MenuItem("show debug", nullptr, &imgui_debug);
+	ImGui::EndMainMenuBar();
+	if (imgui_debug)
+	{
+		ImGui::ShowDemoWindow(&imgui_debug);
+
+	}
 
 	ImGui::Render();
 	

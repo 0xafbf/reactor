@@ -12,7 +12,7 @@
 
 void rLog(rLogLevel log_level, const string format, ... )
 {
-    	va_list args;
+    va_list args;
 	va_start(args, format);
 
 	size_t size = vsnprintf( nullptr, 0, format.c_str(), args ) + 1; // Extra space for '\0'

@@ -32,22 +32,28 @@ rGeometry::rGeometry(rEngine& inEngine, string source_path):engine(&inEngine) {
 		
 		vertices[idx].location = obj_matrix * loc_init;
 		// TODO: check if the model has uvs, if not, do something
-			
-		vertices[idx].uv = {
-			attrib.texcoords[uvIdx * 2],
-			attrib.texcoords[uvIdx * 2 + 1],
-		};
+		
+		if (uvIdx != -1) {
+			vertices[idx].uv = {
+				attrib.texcoords[uvIdx * 2],
+				attrib.texcoords[uvIdx * 2 + 1],
+			};
+		}
 	}
-
-	let indexBufferSize = vertCount * sizeof(u32);
-	indexBuffer = rBuffer(*engine, indices.data(), indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-	rBufferSync(indexBuffer);
-
-	let vertexBufferSize = vertCount * sizeof(vert_data);
-	vertexBuffer = rBuffer(*engine, vertices.data(), vertexBufferSize,  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-	rBufferSync(vertexBuffer);
+	rGeometryFillBuffers(*this);
 	
-	}
+}
+
+void rGeometryFillBuffers(rGeometry& geometry) {
+
+	let indexBufferSize = geometry.indices.size() * sizeof(u32);
+	geometry.indexBuffer = rBuffer(*geometry.engine, geometry.indices.data(), indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+	rBufferSync(geometry.indexBuffer);
+
+	let vertexBufferSize = geometry.vertices.size() * sizeof(vert_data);
+	geometry.vertexBuffer = rBuffer(*geometry.engine, geometry.vertices.data(), vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+	rBufferSync(geometry.vertexBuffer);
+}
 
 
 

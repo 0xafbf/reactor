@@ -1,24 +1,25 @@
 // shaders.slang
 
+cbuffer world {
+float4x4 projection;
+}
+
+struct VertexInput {
+float3 location;
+float2 uv;
+}
+
 [shader("vertex")]
-void vert(
-    uint InIndex : INDEX,
-    out float2 OutPosition : POSITION
-    )
-{
-    OutPosition = float2(0.0, 0.0);
+float4 vert(VertexInput vertex) : SV_Position {
+	return mul(projection, float4(vertex.location, 1.));
+}
+
+struct FragmentInput {
+float4 position : SV_POSITION;
 }
 
 // Fragment Shader
 [shader("fragment")]
-void frag(
-    in float2 Position : POSITION,
-    out float4 OutColor : SV_Target0
-    )
-{
-    OutColor = float4(1.0, 0.0, 0.0, 1.0);
+float4 frag(FragmentInput input) : SV_Target {
+return input.position;
 }
-
-
-// compile with:
-// slangc.exe .\test.slang -profile ps_5_0 -entry fragmentMain -o test-frag.glsl

@@ -8,6 +8,11 @@
 #include "types.h"
 #include "rmath.h"
 
+struct vert_data {
+	vec3 location;
+	vec2 uv;
+};
+
 struct rGeometry {
 
 	rEngine* engine;
@@ -16,21 +21,17 @@ struct rGeometry {
 	array<tinyobj::shape_t> shapes;
 	array<tinyobj::material_t> materials;
 
-	struct vert_data {
-		vec3 location;
-		vec2 uv;
-	};
-
 	array<u32> indices;
 	array<vert_data> vertices;
 
 	rBuffer indexBuffer;
 	rBuffer vertexBuffer;
 
-	rGeometry() {
+	rGeometry(rEngine& inEngine):engine(&inEngine) {
 	}
 
 	rGeometry(rEngine& inEngine, string source_path);
 	
 };
 
+void rGeometryFillBuffers(rGeometry & geometry);

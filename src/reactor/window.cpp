@@ -12,8 +12,8 @@
 #include <iostream>
 #include <iosfwd>
 #include <fstream>
-#include <imgui.h>
 
+#include "gui.h"
 #include "scene.h"
 #include "log.h"
 #include "examples/imgui_impl_glfw.h"
@@ -275,8 +275,9 @@ bool rWindowRender(rWindow* window)
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = &window->renderFinishedSemaphore;
 
-	VK_CHECK(vkQueueSubmit(window->engine->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE));
+	auto result = vkQueueSubmit(window->engine->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
 
+	VK_CHECK(result);
 
 	return true;
 }

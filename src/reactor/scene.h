@@ -24,12 +24,16 @@ struct rScene
 
 void rSceneDraw(rScene* scene, VkCommandBuffer buffer);
 
-void rStateSetDescriptor(VkDevice device, rState& state, u32 binding, rBuffer& buffer, VkDescriptorType descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+//void rStateSetDescriptor(VkDevice device, rState& state, const char* name, u32 binding, rBuffer & buffer, VkDescriptorType descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+
+void rStateSetDescriptor(VkDevice device, rState& state, u32 set_idx, u32 binding, rBuffer& buffer, VkDescriptorType descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
 struct rImage;
 void rStateSetDescriptor(VkDevice device, rState& state, u32 binding, rImage& image, VkDescriptorType descriptor_type);
 
 VkDescriptorSet rDescriptorSet(VkDevice device, VkDescriptorPool descriptor_pool, VkDescriptorSetLayout layout);
+
+array<VkDescriptorSet> rDescriptorSets(VkDevice device, VkDescriptorPool descriptor_pool, array<VkDescriptorSetLayout>& layouts);
 
 
 void rDebug(rGraphicsPipeline& graphics_pipeline);

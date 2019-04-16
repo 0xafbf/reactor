@@ -22,6 +22,11 @@ struct rBuffer {
 
 };
 
+template <class T>
+rBuffer rBufferCreate(rEngine& engine, T& data, VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VkSharingMode sharing_mode = VK_SHARING_MODE_EXCLUSIVE) {
+	return rBuffer(engine, &data, sizeof(data), usage, sharing_mode);
+}
+
 void rBufferSync(const rBuffer& buffer);
 
 void rBufferFetch(const rBuffer & buffer);
