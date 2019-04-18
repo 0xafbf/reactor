@@ -1,3 +1,4 @@
+#! /usr/bin/env pwsh
 
 Push-Location $PSScriptRoot
 
@@ -13,8 +14,15 @@ if (-not $(Test-Path external/.git)) {
 }
 
 echo "running premake..."
-& ./external/premake/premake5 vs2017 --verbose
+If ($IsWindows) {
+    & ./external/premake/premake5 vs2017 --verbose
+}
+ElseIf ($IsLinux) {
+    & ./external/premake/premake5 gmake2 --verbose
+}
 # for linux, ./external/premake/premake5 gmake2 works well
+
+echo "compilation units set up"
 
 
 # required dependencies for linux:
