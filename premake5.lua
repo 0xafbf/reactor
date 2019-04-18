@@ -24,6 +24,13 @@ workspace "reactor"
 		defines { "_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1"}
 		systemversion "latest"
 
+	filter "system:linux"
+        defines {
+            --"_GLFW_OSMESA", -- options: x11 osmesa wayland
+            -- osmesa compiles installs without x11 or wayland headers
+            --"GLFW_INCLUDE_NONE",
+        }
+
 	filter "configurations:Debug"
 		defines { "DEBUG" }
 		symbols "On"
@@ -94,14 +101,17 @@ project "reactor"
 	includedirs { "deps/slang" }
 	files {"shaders/**.slang" }
 
-	filter "platforms:x86"
-	       	links { "$(VULKAN_SDK)/lib32/vulkan-1" }
-
-
-	filter "platforms:x64"
-	       	links { "$(VULKAN_SDK)/lib/vulkan-1" }
 
 
 	filter "system:windows"
 		entrypoint "mainCRTStartup"
 
+	filter {"system:windows", "platforms:x86"}
+	       	links { "$(VULKAN_SDK)/lib32/vulkan-1" }
+	filter {"system:windows", "platforms:x64"}
+	       	links { "$(VULKAN_SDK)/lib/vulkan-1" }
+
+	filter "system:linux"
+	       	links { "$(VULKAN_SDK)/lib/vulkan", 
+	       		"dl", "pthread" -- for glfw
+	       	}
