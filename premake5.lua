@@ -1,4 +1,9 @@
 
+require "export/premake/export-compile-commands"
+--- in theory, as premake is in the same repo as this, it shouldn't be a problem
+
+
+
 
 target_location = "%{wks.location}/bin/%{cfg.shortname}"
 

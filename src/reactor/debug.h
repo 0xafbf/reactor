@@ -22,7 +22,7 @@
 #  elif defined(__DMC__) && defined(_M_IX86)
 	static inline void rBreak(void) { __asm int 3h; }
 #  elif defined(__i386__) || defined(__x86_64__)
-	static inline void rBreak(void) { __asm__ __volatile__("int $03"); }
+	__attribute__((always_inline)) static inline void rBreak(void) { __asm__ __volatile__("int $03"); }
 #  elif defined(__thumb__)
 	static inline void rBreak(void) { __asm__ __volatile__(".inst 0xde01"); }
 #  elif defined(__aarch64__)

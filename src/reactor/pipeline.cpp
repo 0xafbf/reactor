@@ -53,11 +53,7 @@ array<VkDescriptorSetLayout> rDescriptorSetLayouts(SlangReflection* refl) {
 		let type_layout = spReflectionVariableLayout_GetTypeLayout(parameter);
 		
 		let category = spReflectionTypeLayout_GetParameterCategory(type_layout);
-		if (category != SLANG_PARAMETER_CATEGORY_DESCRIPTOR_TABLE_SLOT)
-		{
-			CHECK(!"not a descriptor table slot");
-			continue;
-		}
+		
 		let type = spReflectionTypeLayout_GetType(type_layout);
 		let parameter_kind = spReflectionType_GetKind(type);
 

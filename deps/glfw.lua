@@ -58,6 +58,7 @@ project "glfw"
             "src/glx_context.h",
             "src/egl_context.h",
             "src/osmesa_context.h",
+            "src/linux_joystick.h",
 
             
             "src/x11_init.c",
@@ -70,7 +71,9 @@ project "glfw"
             "src/glx_context.c",
                      
             "src/egl_context.c",
-            "src/osmesa_context.c"
+            "src/osmesa_context.c",
+            "src/linux_joystick.c",
+
         } 
         defines {
             --"_GLFW_OSMESA", -- for headless usage without windows

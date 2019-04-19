@@ -97,7 +97,7 @@ VkBool32 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, V
 	// uncomment for breaking in error
 #define DEBUG_VK_CALLBACK
 #ifdef DEBUG_VK_CALLBACK
-	CHECK(messageSeverity <= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT);
+	CHECK(VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT > messageSeverity);
 #endif
 	return VK_FALSE;
 };
