@@ -1,5 +1,5 @@
 
-require "external/premake/export-compile-commands"
+require "external/premake/export_compile_commands"
 --- in theory, as premake is in the same repo as this, it shouldn't be a problem
 
 
