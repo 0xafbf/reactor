@@ -40,9 +40,9 @@ std::vector<const char*> getValidationLayers()
 	};
 	
 	uint32_t layerCount;
-	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-	array<VkLayerProperties> availableLayers(layerCount);
-	vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+	VK_CHECK(vkEnumerateInstanceLayerProperties(&layerCount, nullptr));
+	auto availableLayers = array<VkLayerProperties>(layerCount);
+	VK_CHECK(vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data()));
 
 	for (const char* layerName : validationLayers) {
 		bool layerFound = false;
@@ -53,6 +53,8 @@ std::vector<const char*> getValidationLayers()
 			}
 		}
 		CHECK(layerFound);
+		// If you have an assertion here, make sure that you have
+		// VK_LAYER_PATH set up in your environment 
 	}
 	return validationLayers;
 }
@@ -95,7 +97,7 @@ VkBool32 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, V
 	// uncomment for breaking in error
 #define DEBUG_VK_CALLBACK
 #ifdef DEBUG_VK_CALLBACK
-	CHECK(messageSeverity < VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT);
+	CHECK(VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT > messageSeverity);
 #endif
 	return VK_FALSE;
 };
@@ -293,10 +295,15 @@ void createDevice(rEngine& engine) {
 	vkEnumeratePhysicalDevices(engine.instance, &deviceCount, devices.data());
 	
 	for (const auto& device : devices) {
+		auto device_properties = VkPhysicalDeviceProperties();
+		vkGetPhysicalDeviceProperties(device, &device_properties);
+		INFO("%s", device_properties.deviceName);
 		if (retrieveDeviceCapabilities(device, &engine.indices))
 		{
 			engine.physicalDevice = device;
-			break;
+			if (device_properties.deviceType != VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) {
+				break;
+			}
 		}
 	}
 
@@ -329,7 +336,7 @@ void createDevice(rEngine& engine) {
 	createInfo.pEnabledFeatures = &deviceFeatures;
 	
 	const std::vector<const char*> deviceExtensions = {
-		VK_KHR_SWAPCHAIN_EXTENSION_NAME
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 	};
 
 	createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());

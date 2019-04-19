@@ -104,7 +104,7 @@ project "slang-glslang"
 		removefiles { "external/glslang/glslang/OSDependent/Windows/main.cpp" }
 	filter { "system:linux" }
 		links { "dl", "pthread" }
-		files {"external/glslang/glslang/OSDependent/Unix"}
+		files {"external/glslang/glslang/OSDependent/Unix/*"}
 		buildoptions{"-fPIC", "-pthread"}
 
 

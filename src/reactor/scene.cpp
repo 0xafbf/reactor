@@ -131,9 +131,6 @@ void rPipelineDraw(rState* state, VkCommandBuffer commandBuffer) {
 	vkCmdDrawIndexed(commandBuffer, state->geometry->indices.size(), 1, 0, 0, 0);
 }
 
-
-
-
 bool rDebug(VkPipelineRasterizationStateCreateInfo& rasterizer) {
 	bool changed = false;
 	changed |= ImGui::DragFloat("line width", &rasterizer.lineWidth, 0.1, 0, 64);
