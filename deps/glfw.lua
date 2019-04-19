@@ -49,26 +49,36 @@ project "glfw"
 		   buildoptions "/MT"
 
     filter "system:linux"
-
-        files { 
-            "src/null_platform.h",
-            "src/null_joystick.h",
+        files {  -- these are for the x11 backend
+            "src/x11_platform.h",
+            "src/xkb_unicode.h",
             "src/posix_time.h",
+                                 
             "src/posix_thread.h",
-            "src/osmesa_context.h"
-        }
-        files {
-            "src/null_init.c",
-            "src/null_monitor.c",
-            "src/null_window.c",
-            "src/null_joystick.c",
+            "src/glx_context.h",
+            "src/egl_context.h",
+            "src/osmesa_context.h",
+
+            
+            "src/x11_init.c",
+            "src/x11_monitor.c",
+            "src/x11_window.c",
+                     
+            "src/xkb_unicode.c",
             "src/posix_time.c",
             "src/posix_thread.c",
-            "src/osmesa_context.c",
-        }
+            "src/glx_context.c",
+                     
+            "src/egl_context.c",
+            "src/osmesa_context.c"
+        } 
         defines {
-            "_GLFW_OSMESA", -- options: x11 osmesa wayland
-            -- osmesa compiles installs without x11 or wayland headers
-            --"GLFW_INCLUDE_NONE",
+            --"_GLFW_OSMESA", -- for headless usage without windows
+            "_GLFW_X11",
+            --"_GLFW_WAYLAND",
+        }
+        undefines {
+            "GLFW_INCLUDE_NONE",
         }
         links { "dl", "pthread" }
+        links { "X11", "Xrandr", "Xinerama", "Xi" , "Xkb", "Xcursor"} -- for x11

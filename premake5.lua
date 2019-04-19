@@ -28,8 +28,10 @@ workspace "reactor"
         defines {
             --"_GLFW_OSMESA", -- options: x11 osmesa wayland
             -- osmesa compiles installs without x11 or wayland headers
-            --"GLFW_INCLUDE_NONE",
+            "GLFW_INCLUDE_NONE", -- avoid including GL stuff
         }
+        links { "X11", "Xrandr", "Xinerama", "Xi" , "Xcursor"} -- for x11
+
 
 	filter "configurations:Debug"
 		defines { "DEBUG" }
