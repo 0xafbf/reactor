@@ -40,26 +40,6 @@ vector3 vector3::normalized() {
 	return r;
 }
 
-void rCameraTick(rOrbitCamera & camera)
-{
-	auto io = ImGui::GetIO();
-	if (!io.WantCaptureMouse)
-	{
-		if (io.MouseDown[0]) {
-			let delta = io.MouseDelta;
-			let speed = 0.3 deg;
-			camera.yaw += delta.x * -speed;
-			camera.pitch += delta.y * speed;
-		}
-		if (io.MouseWheel) {
-			let delta = io.MouseWheel;
-			let speed = 0.1;
-			camera.distance *= exp(delta * speed);
-		}
-	}
-
-}
-
 mat4 rCameraProject(rOrbitCamera & camera, float aspect_ratio)
 {
 	let view = mat4::orbit(camera.distance, camera.pitch, camera.yaw);

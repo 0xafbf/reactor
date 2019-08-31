@@ -166,7 +166,7 @@ rGrid rGridNew(rEngine& engine, float size = 5.0, u32 subdivs = 21, bool with_in
 	rBufferSync(grid.transform_buffer);
 
 	grid.state.descriptor_sets = rDescriptorSets(engine.device, engine.descriptor_pool, grid.pipeline.shader.descriptor_set_layouts);
-	
+
 	rStateSetDescriptor(engine.device, grid.state, 1, 0, grid.transform_buffer);
 
 	return grid;
@@ -176,12 +176,22 @@ void rDebug(rGrid& grid) {
 
 }
 
-
+float& rTick(float& timer) {
+	let& engine = rEngineMain();
+	timer += engine.deltaTime;
+	return timer;
+}
+float& rTick(float& timer, float timescale) {
+	let& engine = rEngineMain();
+	timer += engine.deltaTime * timescale;
+	return timer;
+}
+void rNodes();
 int main()
 {
 	auto engine = rEngine("My Great App");
 	auto window = rWindow(engine, "My Greatest Window", 1024, 1024);
-	
+
 	//auto pipeline = rPipeline(engine, "shaders/basic.slang");
 
 	auto grid = rGridNew(engine, 4, 51);
@@ -189,7 +199,7 @@ int main()
 	rScene scene;
 	scene.primitives.push_back(grid);
 	window.scene = &scene;
-	
+
 /*
 	auto transform = rTransform();
 	auto transform_mat = rTransformMatrix(transform);
@@ -197,7 +207,7 @@ int main()
 	rStateSetDescriptor(engine.device, state.descriptor_sets[0], 0, transform_buffer);
 	//rStateSetDescriptor(engine.device, grid.state.descriptor_sets[0], 0, grid.transform_buffer);
 	*/
-	
+
 	//auto image = rImage(engine, "content/uv.png");
 	//rStateSetDescriptor(engine.device, state, 2, image, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
 	//rStateSetDescriptor(engine.device, state, 3, image, VK_DESCRIPTOR_TYPE_SAMPLER);
@@ -221,7 +231,7 @@ int main()
 	scene.primitives.push_back(&state);
 	auto geom = rGeometry(engine, "content/proj.obj");
 	state.geometry = &geom;
-	
+
 	state.pipeline = &grid.pipeline;
 	state.descriptor_sets = rDescriptorSets(engine.device, engine.descriptor_pool, grid.pipeline.shader.descriptor_set_layouts);
 	rStateSetDescriptor(engine.device, state, 0, 0, z_mem);
@@ -232,11 +242,12 @@ int main()
 	rStateSetDescriptor(engine.device, state, 2, 0, projection_buffer);
 
 
-	
+
 	while ( rEngineStartFrame(engine))
 	{
 		ImGui::Begin("Debug");
 		ImGui::DragFloat3("z", &z.x, 0.02);
+		//rTick(z.y);
 		rDebug(transf, "transform");
 		transf_mat = rTransformMatrix(transf);
 		rBufferSync(transf_mem);
@@ -254,9 +265,68 @@ int main()
 		projection = rCameraProject(camera, aspect_ratio) * mat4::screen();
 		rBufferSync(projection_buffer);
 
+		rNodes();
+
 		rShaderShowLog();
 		rEngineEndFrame(engine);
 	}
-	
+
 	return 0;
+}
+
+struct rNode {
+	u32 id;
+	vec2 position;
+};
+
+array<rNode> nodes;
+
+bool opened = true;
+void rNodes() {
+	if(!ImGui::Begin(("Nodes"), &opened)) {
+		ImGui::End();
+	}
+
+	if (ImGui::Button("Add node")){
+		rNode node;
+		node.id = nodes.size();
+		node.position = vec2(10, 20);
+		nodes.push_back(node);
+	}
+
+	ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+	auto offset = vec2(10, 20); // maybe include scrolling?
+
+	draw_list->ChannelsSplit(2);
+
+	for (auto& node : nodes) {
+		ImGui::PushID(node.id);
+		auto node_position = node.position + offset;
+		ImGui::SetCursorPos(node_position);
+
+		draw_list->ChannelsSetCurrent(1);
+		ImGui::BeginGroup();
+		ImGui::Text("Node:%d", node.id);
+		ImGui::Text("Debug any data here");
+		ImGui::EndGroup();
+
+		vec2 size = ImGui::GetItemRectSize();
+		vec2 max = node_position + size;
+
+		draw_list->ChannelsSetCurrent(0);
+
+		ImGui::SetCursorPos(node_position);
+		ImGui::InvisibleButton("node", size);
+
+		bool item_active = ImGui::IsItemActive();
+		if (item_active && ImGui::IsMouseDragging(0)) {
+			node.position = node.position + ImGui::GetIO().MouseDelta;
+		}
+
+		ImGui::PopID();
+	}
+	draw_list->ChannelsMerge();
+
+	ImGui::End();
 }

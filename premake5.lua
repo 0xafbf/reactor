@@ -1,9 +1,6 @@
 
-require "external/premake/export_compile_commands"
+require "export_compile_commands"
 --- in theory, as premake is in the same repo as this, it shouldn't be a problem
-
-
-
 
 target_location = "%{wks.location}/bin/%{cfg.shortname}"
 
@@ -11,12 +8,12 @@ workspace "reactor"
 
 	configurations { "Debug", "Work", "Release" }
 	platforms { "x86", "x64" }
-	
+
 
 	staticruntime "On"
 	systemversion "latest"
 	targetdir (target_location)
-	
+
 
 	filter { "platforms:x64" }
 		architecture "x64"
@@ -63,7 +60,7 @@ include "deps/slang.lua"
 group ""
 project "reactor"
 	systemversion "latest"
-		
+
 	kind "WindowedApp"
 	language "C++"
 
@@ -79,7 +76,7 @@ project "reactor"
 	files { "src/**.h", "src/**.cpp" }
 	includedirs { "src/reactor" }
 
-	includedirs { "$(VULKAN_SDK)/include" }
+	includedirs { os.getenv("VULKAN_SDK") .. "/include" }
 
 	files { "deps/imgui/*.h", "deps/imgui/*.cpp" }
 	files { "deps/imgui/examples/imgui_impl_glfw.*", "deps/imgui/examples/imgui_impl_vulkan.*"}
@@ -95,7 +92,7 @@ project "reactor"
 	-- files { "deps/glfw/"}
 	links {"glfw"}
 	includedirs { "deps/glfw/include"}
-	
+
 	includedirs { "deps/glfw/include"}
 	files { "deps/SPIRV-Reflect/spirv_reflect.*" }
 	includedirs { "deps/SPIRV-Reflect" }
@@ -104,7 +101,7 @@ project "reactor"
 
 	links {"slang", "slang-glslang"}
 
-		
+
 	includedirs { "deps/slang" }
 	files {"shaders/**.slang" }
 
@@ -119,6 +116,6 @@ project "reactor"
 	       	links { "$(VULKAN_SDK)/lib/vulkan-1" }
 
 	filter "system:linux"
-	       	links { "$(VULKAN_SDK)/lib/vulkan", 
+	       	links { "$(VULKAN_SDK)/lib/vulkan",
 	       		"dl", "pthread" -- for glfw
 	       	}

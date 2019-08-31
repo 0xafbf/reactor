@@ -29,6 +29,7 @@ ParameterBlock<PerView> world;
 
 cbuffer test{
 float3 z2;
+Vertex z3;
 }
 
 struct Vertex
@@ -44,7 +45,7 @@ struct FragInput
 	float2 uv;
 }
 [shader("vertex")]
-FragInput vert(Vertex inVert) 
+FragInput vert(Vertex inVert)
 {
 	FragInput r;
 	r.location = inVert.location;
@@ -56,7 +57,7 @@ FragInput vert(Vertex inVert)
 	float3 original_point = point.xyz;
 	float4 new_point = 0;
 
-	
+
 	float z = z2.x;
 	float m = z2.y;
 	float s = z2.z;
@@ -83,5 +84,5 @@ float4 frag(FragInput in, float4 pos:SV_Position) : SV_Target
 	//color.z = sin(color.x * 20) * cos(color.y * 20) + z;
 	//color = pos/500;
 	float4 color = float4(1.0);//float4(in.uv * 2, 0, 0);
-	return color; 
+	return color;
 }

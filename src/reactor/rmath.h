@@ -1,12 +1,9 @@
 
 #pragma once
-#include <math.h>
+#include <cmath>
 
 #include "types.h"
 #include "debug.h"
-
-// TODO move this to another place, with rDebug functions too.
-#include "gui.h"
 
 
 // just placed here to bring these constants to where they can be looked for, and remove M_ prefix
@@ -36,19 +33,30 @@ struct vector2
 	vector2() {}
 	vector2(float scale): x(scale), y(scale) {}
 	vector2(float _x, float _y): x(_x), y(_y) {}
+	vector2 operator+(const vector2& rhs) {
+		return vector2(x+rhs.x, y+rhs.y);
+	}
 };
 typedef vector2 vec2;
+
+#define IM_VEC2_CLASS_EXTRA                                                 \
+        ImVec2(const vector2& f) { x = f.x; y = f.y; }                       \
+        operator vector2() const { return vector2(x,y); }
+
+// #define IM_VEC4_CLASS_EXTRA                                                 \
+//         ImVec4(const MyVec4& f) { x = f.x; y = f.y; z = f.z; w = f.w; }     \
+//         operator MyVec4() const { return MyVec4(x,y,z,w); }
 
 struct vector3
 {
 	float x;
 	float y;
 	float z;
-	
+
 	vector3() {};
 	vector3(float in) : x(in), y(in), z(in) {};
 	vector3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {};
-	
+
 	vector3 operator+(const vector3* rhs)
 	{
 		return vector3(this->x + rhs->x, this->y + rhs->y, this->z + rhs->z);
@@ -95,7 +103,7 @@ struct mat4
 		m[0] = m[5] = m[10] = scale;
 		m[15] = 1.;
 	}
-	
+
 	float& operator[](u32 idx)
 	{
 		return m[idx];
@@ -109,7 +117,7 @@ struct mat4
 		CHECK(jdx < 4);
 		return m[idx * 4 + jdx];
 	}
-	
+
 	const float& operator()(u32 idx, u32 jdx) const
 	{
 		CHECK(idx >= 0);
@@ -118,7 +126,7 @@ struct mat4
 		CHECK(jdx < 4);
 		return m[idx * 4 + jdx];
 	}
-	
+
 	mat4 operator+(mat4& rhs) {
 		mat4 r;
 		for (u32 idx = 0; idx < 4; ++idx) {
@@ -182,7 +190,7 @@ struct mat4
 	}
 
 	static mat4 orbit(float dist, float pitch, float yaw) {
-		
+
 		vec3 viewLocation;
 		viewLocation.x = dist * sin(yaw) * cos(pitch);
 		viewLocation.y = dist * cos(yaw) * cos(pitch);
@@ -193,7 +201,7 @@ struct mat4
 		auto viewUp = vec3(0.0, 0.0, 1.0);
 		auto viewRight = vec3::cross(viewUp, viewForward).normalized();
 		viewUp = vec3::cross(viewForward, viewRight);
-		
+
 		auto view = mat4(1);
 		view(0, 0) = viewForward.x;
 		view(0, 1) = viewForward.y;
@@ -220,8 +228,8 @@ struct mat4
 
 	// I decided to call this cam_perspective, just because I want to do another perspective that is better suited for effects/data
 	static mat4 cam_perspective(float fov, float aspect_ratio = 16 / 9, aspect_mode mode = ASPECT_VERTICAL, float near_plane = 0.01, float far_plane = 1000);
-	
-	
+
+
 
 	static mat4 screen()
 	{
@@ -258,9 +266,9 @@ struct rOrbitCamera {
 	bool bDebug = false;
 };
 
-void rCameraTick(rOrbitCamera& camera);
 
 mat4 rCameraProject(rOrbitCamera& camera, float aspect_ratio);
+
 struct rTransform {
 	vec3 location = vec3(0.);
 	vec3 rotation = vec3(0.);// Euler angles XYZ
@@ -280,7 +288,7 @@ inline mat4 rRotateMatrix(vec3 axis, float angle)
 	r(2, 1) = (axis.z * axis.y * (1. - cos(angle))) + (axis.x * sin(angle));
 	r(2, 0) = (axis.z * axis.x * (1. - cos(angle))) - (axis.y * sin(angle));
 	r(0, 2) = (axis.x * axis.z * (1. - cos(angle))) + (axis.y * sin(angle));
-	
+
 	return r;
 }
 
@@ -309,23 +317,3 @@ inline mat4 rTransformMatrix(const rTransform& transform) {
 	return r;
 }
 
-inline void rDebug(rTransform& transform, string text, bool snap = false)
-{
-	ImGui::PushID(&transform);
-	ImGui::DragFloat3("location", &transform.location.x, 0.01);
-	ImGui::DragFloat3("rotation", &transform.rotation.x, 0.01);
-	//transform.rotation.x -= fmod(transform.rotation.x ,(TAU / 8));// try snap later
-	ImGui::DragFloat3("scale", &transform.scale.x, 0.01);
-	ImGui::PopID();
-}
-
-inline void rDebug(mat4& mat, string name) {
-	float scroll_speed = 0.01;
-	float limit = 10.;
-	ImGui::PushID(&mat);
-	ImGui::DragFloat4("mat[0]", &mat.m[0], scroll_speed, -limit, limit);
-	ImGui::DragFloat4("mat[1]", &mat.m[4], scroll_speed, -limit, limit);
-	ImGui::DragFloat4("mat[2]", &mat.m[8], scroll_speed, -limit, limit);
-	ImGui::DragFloat4("mat[3]", &mat.m[12], scroll_speed, -limit, limit);
-	ImGui::PopID();
-}

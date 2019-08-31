@@ -12,14 +12,14 @@ void rImageCreate(rImage& image, string location) {
 
 	unsigned char *data = stbi_load(location.c_str(), &image.width, &image.height, &image.depth, STBI_rgb_alpha);
 	CHECK(data);
-	
+
 	let bufferSize = image.width * image.height * 4;
 	auto& engine = *image.engine;
 
 	auto buffer = rBuffer(engine, data, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 	rBufferSync(buffer);
 	stbi_image_free(data);
-	
+
 	VkImageCreateInfo imageInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 	imageInfo.imageType = VK_IMAGE_TYPE_2D;
 	imageInfo.extent.width = image.width;

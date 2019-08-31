@@ -28,7 +28,10 @@ constexpr bool enableValidationLayers = false;
 constexpr bool enableValidationLayers = true;
 #endif
 
-//#define DEBUG_VK_CALLBACK
+static rEngine* global_engine;
+// I really don't know if this will make a mess
+rEngine& rEngineMain() { return *global_engine; };
+
 
 std::vector<const char*> getValidationLayers()
 {
@@ -125,6 +128,7 @@ void createRenderPasses(rEngine* engine);
 
 void rEngineStart(rEngine* engine)
 {
+	global_engine = engine;
 	// we need to do this first as getRequiredExtensions relies on it
 	glfwInit();
 	

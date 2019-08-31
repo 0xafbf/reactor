@@ -24,97 +24,42 @@ VkDescriptorType rDescriptorType(SlangTypeKind kind) {
 }
 
 
-VkDescriptorSetLayoutBinding rDescriptorSetLayoutBinding(SlangReflectionVariableLayout* field) {
-	let field_type_layout = spReflectionVariableLayout_GetTypeLayout(field);
-	let field_type = spReflectionTypeLayout_GetType(field_type_layout);
-	let kind = spReflectionType_GetKind(field_type);
-	auto descriptor_type = rDescriptorType(kind);
+// a descriptor set layout should be derived just from the shader
+// type layout right?
+VkDescriptorSetLayout rDescriptorSetLayout(SlangReflectionTypeLayout* type_layout) {
+	auto type = spReflectionTypeLayout_GetType(type_layout);
 
-	VkDescriptorSetLayoutBinding layout_binding;
-	layout_binding.binding = spReflectionParameter_GetBindingIndex(field);
-	layout_binding.descriptorCount = 1;
-	layout_binding.descriptorType = descriptor_type;
-	layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-	layout_binding.pImmutableSamplers = nullptr;
+	// maybe will be used later
+	auto name = spReflectionType_GetName(type);
 
-	return layout_binding;
-}
+	auto field_count = spReflectionType_GetFieldCount(type);
+	auto layout_bindings = array<VkDescriptorSetLayoutBinding>(field_count);
+	for (auto idx = 0; idx < field_count; ++idx) {
+		auto field = spReflectionTypeLayout_GetFieldByIndex(type_layout, idx);
 
-array<VkDescriptorSetLayout> rDescriptorSetLayouts(SlangReflection* refl) {
-	auto descriptor_set_layouts = array<VkDescriptorSetLayout>();
-	//auto layout_bindings = rDescriptorLayoutBindings(refl);
-	let parameter_count = spReflection_GetParameterCount(refl);
+		let field_type_layout = spReflectionVariableLayout_GetTypeLayout(field);
+		let field_type = spReflectionTypeLayout_GetType(field_type_layout);
+		let kind = spReflectionType_GetKind(field_type);
+		auto descriptor_type = rDescriptorType(kind);
 
-	auto cbuffer_layout_bindings = array<VkDescriptorSetLayoutBinding>();
-
-	INFO("listing shader parameters:");
-	for (u32 idx = 0; idx < parameter_count; ++idx) {
-		let parameter = spReflection_GetParameterByIndex(refl, idx);
-		let type_layout = spReflectionVariableLayout_GetTypeLayout(parameter);
-		
-		let category = spReflectionTypeLayout_GetParameterCategory(type_layout);
-		
-		let type = spReflectionTypeLayout_GetType(type_layout);
-		let parameter_kind = spReflectionType_GetKind(type);
-
-		let elem_type_layout = spReflectionTypeLayout_GetElementTypeLayout(type_layout);
-		let elem_type = spReflectionTypeLayout_GetType(elem_type_layout);
-		let field_count = spReflectionType_GetFieldCount(elem_type);
-
-		if (parameter_kind == SLANG_TYPE_KIND_CONSTANT_BUFFER) {
-			INFO("FOOUND CONSTANTBUFFER, APPEND TO FIRST DESCRIPTOR SET");
-			INFO("field count: %d", field_count);
-			for (u32 jdx = 0; jdx < field_count; ++jdx) {
-				let field = spReflectionTypeLayout_GetFieldByIndex(elem_type_layout, jdx);
-				let layout_binding = rDescriptorSetLayoutBinding(field);
-
-				cbuffer_layout_bindings.push_back(layout_binding);
-			}
-		}
-		else if (parameter_kind != SLANG_TYPE_KIND_PARAMETER_BLOCK)
-		{
-			let parameter_type_name = spReflectionType_GetName(type);
-			INFO("PARAMETER IS NOT STANDARD, is %s instead", parameter_type_name);
-			let layout_binding = rDescriptorSetLayoutBinding(parameter);
-			cbuffer_layout_bindings.push_back(layout_binding);
-		}
-
-		array<VkDescriptorSetLayoutBinding> layout_bindings;
-
-		for (u32 jdx = 0; jdx < field_count; ++jdx){
-			// I don't remember what this does
-			let field = spReflectionTypeLayout_GetFieldByIndex(elem_type_layout, jdx);
-
-			let layout_binding = rDescriptorSetLayoutBinding(field);
-			layout_bindings.push_back(layout_binding);
-		}
-		
-		///////////////////////////
-		VkDescriptorSetLayoutCreateInfo layout_info = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-		//layout_info.flags = 0
-		layout_info.pBindings = layout_bindings.data();
-		layout_info.bindingCount = layout_bindings.size();
-
-		VkDescriptorSetLayout descriptor_set_layout;
-		CHECK(device);
-		VK_CHECK(vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &descriptor_set_layout));
-		descriptor_set_layouts.push_back(descriptor_set_layout);
+		// all this info can be better retrieved with reflection
+		auto& layout_binding = layout_bindings[idx];
+		layout_binding.binding = spReflectionParameter_GetBindingIndex(field);
+		layout_binding.descriptorCount = 1;
+		layout_binding.descriptorType = descriptor_type;
+		layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+		layout_binding.pImmutableSamplers = nullptr;
 	}
 
-	if (cbuffer_layout_bindings.size() > 0)
-	{
-		VkDescriptorSetLayoutCreateInfo layout_info = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-		//layout_info.flags = 0
-		layout_info.pBindings = cbuffer_layout_bindings.data();
-		layout_info.bindingCount = cbuffer_layout_bindings.size();
-		VkDescriptorSetLayout cbuffer_descriptor_set_layout;
-		CHECK(device);
-		VK_CHECK(vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &cbuffer_descriptor_set_layout));
+	VkDescriptorSetLayoutCreateInfo layout_info = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+	//layout_info.flags = 0
+	layout_info.pBindings = layout_bindings.data();
+	layout_info.bindingCount = layout_bindings.size(); // equals field_count
 
-		descriptor_set_layouts.insert(descriptor_set_layouts.begin(), cbuffer_descriptor_set_layout);
-	}
-
-	return descriptor_set_layouts;
+	VkDescriptorSetLayout descriptor_set_layout;
+	CHECK(device);
+	VK_CHECK(vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &descriptor_set_layout));
+	return descriptor_set_layout;
 }
 
 
@@ -219,8 +164,9 @@ rShader rShaderNew(VkDevice in_device, string in_path) {
 
 		VkShaderModule* stage_module;
 		if (stage == VK_SHADER_STAGE_VERTEX_BIT) stage_module = &r.vert_module;
-		if (stage == VK_SHADER_STAGE_FRAGMENT_BIT) stage_module = &r.frag_module;
-		CHECK(stage_module);
+		else if (stage == VK_SHADER_STAGE_FRAGMENT_BIT) stage_module = &r.frag_module;
+		else CHECK(false && "Unhandled shader stage");
+
 		VK_CHECK(vkCreateShaderModule(device, &shader_module_info, nullptr, stage_module));
 
 		VkPipelineShaderStageCreateInfo stage_info = {};
@@ -251,14 +197,14 @@ rShader rShaderNew(VkDevice in_device, string in_path) {
 				// for example, this field is:
 				// is a bool/int/float
 				let scalar_type = spReflectionType_GetScalarType(type);
-				
+
 				// it is useful if type->kind is array
 				let elem_count = spReflectionType_GetElementCount(type);
 				// it is a int/float 16/32/64 type!
-				
+
 
 				auto format = rFormat(elem_count, scalar_type);
-				
+
 				VkVertexInputAttributeDescription attribute_description;
 				attribute_description.binding = binding_index;
 				attribute_description.format = format;
@@ -276,10 +222,25 @@ rShader rShaderNew(VkDevice in_device, string in_path) {
 			r.input_bindings.push_back(binding_description);
 		}
 	}
+	// end shader stages
 
-	
-	
-	r.descriptor_set_layouts = rDescriptorSetLayouts(r.reflection);
+	// now parse parameters
+	let parameter_count = spReflection_GetParameterCount(r.reflection);
+	r.descriptor_set_layouts = array<VkDescriptorSetLayout>(parameter_count);
+
+	for (u32 idx = 0; idx < parameter_count; ++idx) {
+		let parameter = spReflection_GetParameterByIndex(r.reflection, idx);
+
+		let type_layout = spReflectionVariableLayout_GetTypeLayout(parameter);
+		let elem_type_layout = spReflectionTypeLayout_GetElementTypeLayout(type_layout);
+		// I think that maybe this result can be cached in the case of
+		// some shaders sharing the same parameter layouts...
+		auto descriptor_set_layout = rDescriptorSetLayout(elem_type_layout);
+
+		auto parameter_index = spReflectionParameter_GetBindingSpace(parameter);
+		r.descriptor_set_layouts[parameter_index] = descriptor_set_layout;
+	}
+
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 	pipelineLayoutInfo.setLayoutCount = r.descriptor_set_layouts.size();
@@ -306,7 +267,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 	r.engine = &inEngine;
 
 	r.shader = rShaderNew(inEngine.device, inPath);
-	
+
 	r.input_assembly = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
 	r.input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	//inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
@@ -329,7 +290,7 @@ rGraphicsPipeline rPipeline(rEngine& inEngine, string inPath) {
 
 
 
-struct ShaderStages { 
+struct ShaderStages {
 	u64 count;
 	VkPipelineShaderStageCreateInfo* ptr;
 };

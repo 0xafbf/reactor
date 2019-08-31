@@ -58,3 +58,5 @@ void rEngineEndFrame(rEngine& engine);
 void rEngineMainLoop(rEngine& engine);
 
 struct rImage& rWindowTakeScreenshot(rWindow * window);
+
+rEngine& rEngineMain();

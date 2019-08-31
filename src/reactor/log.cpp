@@ -18,12 +18,12 @@ void rLog(rLogLevel log_level, const string format, ... )
 	va_start(args, format);
 	size_t size = vsnprintf( nullptr, 0, format_c_str, args ) + 1; // Extra space for '\0'
 	va_end(args); // in gcc, calling vsnprintf without va_end+va_start crashes
-	
-	let buf = (char*)malloc(size);// buf( new char[ size ] ); 
+
+	let buf = (char*)malloc(size);// buf( new char[ size ] );
 	va_start(args, format);
 	vsnprintf( buf, size, format_c_str, args );
     va_end(args);
-    
+
 	let output = string( buf, buf + size - 1 )+'\n'; // We don't want the '\0' inside
     free(buf);
 

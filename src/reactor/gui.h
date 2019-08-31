@@ -4,6 +4,7 @@
 #define IM_ASSERT CHECK
 #define STBTT_assert CHECK
 
+#include "rmath.h"
 #include "imgui.h"
 
 
@@ -22,3 +23,8 @@ bool rDebugCombo(const char* name, T* data, std::initializer_list<const char*> i
 	int* ptr = (int*)data;
 	return ImGui::Combo(name, ptr, items.begin(), items.size(), -1);
 }
+
+void rDebug(rTransform& transform, string text, bool snap = false);
+void rDebug(mat4& mat, string name);
+
+void rCameraTick(rOrbitCamera& camera);

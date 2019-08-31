@@ -119,9 +119,9 @@ void rPipelineDraw(rState* state, VkCommandBuffer commandBuffer) {
 		return;
 	}
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
-		
+
 	VkDeviceSize offsets[] = { 0 };
-	
+
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, &state->geometry->vertexBuffer.buffer, offsets);
 	vkCmdBindIndexBuffer(commandBuffer, state->geometry->indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 	if (state->descriptor_sets.size()){
@@ -158,11 +158,158 @@ bool rDebug(VkPipelineInputAssemblyStateCreateInfo& input_assembly) {
 	return changed;
 }
 
+const char* rStageName(SlangStage stage) {
+	switch (stage) {
+	case SLANG_STAGE_NONE:
+		return "Stage:NONE";
+	case SLANG_STAGE_VERTEX:
+		return "Stage:VERTEX";
+	case SLANG_STAGE_HULL:
+		return "Stage:HULL";
+	case SLANG_STAGE_DOMAIN:
+		return "Stage:DOMAIN";
+	case SLANG_STAGE_GEOMETRY:
+		return "Stage:GEOMETRY";
+	case SLANG_STAGE_FRAGMENT:
+		return "Stage:FRAGMENT";
+	case SLANG_STAGE_COMPUTE:
+		return "Stage:COMPUTE";
+	case SLANG_STAGE_RAY_GENERATION:
+		return "Stage:RAY_GENERATION";
+	case SLANG_STAGE_INTERSECTION:
+		return "Stage:INTERSECTION";
+	case SLANG_STAGE_ANY_HIT:
+		return "Stage:ANY_HIT";
+	case SLANG_STAGE_CLOSEST_HIT:
+		return "Stage:CLOSEST_HIT";
+	case SLANG_STAGE_MISS:
+		return "Stage:MISS";
+	case SLANG_STAGE_CALLABLE:
+		return "Stage:CALLABLE";
+	}
+	return "Stage:NOTFOUND";
+}
+
+
+
+const char* rScalarTypeName(SlangScalarType scalar_type){
+	switch (scalar_type){
+		case SLANG_SCALAR_TYPE_NONE: return "NONE";
+		case SLANG_SCALAR_TYPE_VOID: return "VOID";
+		case SLANG_SCALAR_TYPE_BOOL: return "BOOL";
+		case SLANG_SCALAR_TYPE_INT32: return "INT32";
+		case SLANG_SCALAR_TYPE_UINT32: return "UINT32";
+		case SLANG_SCALAR_TYPE_INT64: return "INT64";
+		case SLANG_SCALAR_TYPE_UINT64: return "UINT64";
+		case SLANG_SCALAR_TYPE_FLOAT16: return "FLOAT16";
+		case SLANG_SCALAR_TYPE_FLOAT32: return "FLOAT32";
+		case SLANG_SCALAR_TYPE_FLOAT64: return "FLOAT64";
+		case SLANG_SCALAR_TYPE_INT8: return "INT8";
+		case SLANG_SCALAR_TYPE_UINT8: return "UINT8";
+		case SLANG_SCALAR_TYPE_INT16: return "INT16";
+		case SLANG_SCALAR_TYPE_UINT16: return "UINT16";
+	}
+	return "ERROR";
+}
+
+
+void rDebug(SlangReflectionVariable* variable){
+
+	let variable_name = spReflectionVariable_GetName(variable);
+	ImGui::Text("Field: %s", variable_name);
+	// ImGui::Text("Var %s : %s(%d)", variable_name, parameter_semantic_name, parameter_semantic_index);
+
+	let type = spReflectionVariable_GetType(variable);
+	let type_name = spReflectionType_GetName(type);
+	let type_kind = spReflectionType_GetKind(type);
+	let type_scalar_type = spReflectionType_GetScalarType(type);
+	let type_element_type = spReflectionType_GetElementType(type);
+	let type_element_type_name = spReflectionType_GetName(type_element_type);
+
+	// let type_layout = spReflectionVariableLayout_GetTypeLayout(parameter);
+	let type_field_count = spReflectionType_GetFieldCount(type);
+
+	ImGui::SameLine(200.0);
+	ImGui::Text("Type (%d) %s : %s", type_field_count, type_name, type_element_type_name);
+	ImGui::Indent();
+	for (u32 kdx = 0; kdx < type_field_count; ++kdx) {
+		let inner_variable = spReflectionType_GetFieldByIndex(type, kdx);
+
+		rDebug(inner_variable);
+		// let inner_variable = spReflectionVariableLayout_GetVariable(inner_variable_layout);
+
+	}
+	ImGui::Unindent();
+
+}
+
+
 void rDebug(rGraphicsPipeline& graphics_pipeline) {
+	ImGui::Begin("pipeline");
 	bool pipeline_changed = false;
 	pipeline_changed |= rDebug(graphics_pipeline.rasterizer);
 	pipeline_changed |= rDebug(graphics_pipeline.input_assembly);
+
+	let reflection = graphics_pipeline.shader.reflection;
+	ImGui::Text(graphics_pipeline.shader.name.c_str());
+
+	let entry_point_count = spReflection_getEntryPointCount(reflection);
+	ImGui::Text("Entry points: %d", entry_point_count);
+	ImGui::Indent();
+	for (u32 idx = 0; idx < entry_point_count; ++idx) {
+		let entry_point = spReflection_getEntryPointByIndex(reflection, idx);
+		let entry_point_name = spReflectionEntryPoint_getName(entry_point);
+		let entry_point_stage = spReflectionEntryPoint_getStage(entry_point);
+		let stage_name = rStageName(entry_point_stage);
+
+		ImGui::Text("%s %s", stage_name, entry_point_name);
+
+		let parameter_count = spReflectionEntryPoint_getParameterCount(entry_point);
+		for (u32 jdx = 0; jdx < parameter_count; ++jdx) {
+			let parameter = spReflectionEntryPoint_getParameterByIndex(entry_point, jdx);
+			//let parameter_offset = spReflectionVariableLayout_GetOffset(parameter,);
+			let parameter_semantic_name = spReflectionVariableLayout_GetSemanticName(parameter);
+			let parameter_semantic_index = spReflectionVariableLayout_GetSemanticIndex(parameter);
+			let variable = spReflectionVariableLayout_GetVariable(parameter);
+			rDebug(variable);
+
+		}
+
+	}
+	ImGui::Unindent();
+
+	ImGui::Text("Shader Parameters:");
+
+	ImGui::Indent();
+
+	u32 param_count = spReflection_GetParameterCount(reflection);
+	for (u32 idx = 0; idx < param_count; ++idx) {
+		auto parameter = spReflection_GetParameterByIndex(reflection, idx);
+		u32 index = spReflectionParameter_GetBindingIndex(parameter);
+		u32 space = spReflectionParameter_GetBindingSpace(parameter);
+		let variable = spReflectionVariableLayout_GetVariable(parameter);
+		auto variable_name = spReflectionVariable_GetName(variable);
+
+		let type_layout = spReflectionVariableLayout_GetTypeLayout(parameter);
+		let type = spReflectionTypeLayout_GetType(type_layout);
+		let category_count = spReflectionTypeLayout_GetCategoryCount(type_layout);
+		let elem_type_layout = spReflectionTypeLayout_GetElementTypeLayout(type_layout);
+		let elem_type = spReflectionTypeLayout_GetType(elem_type_layout);
+		let elem_type_name = spReflectionType_GetName(elem_type);
+		ImGui::Text("(%d) %s : %s", space, variable_name, elem_type_name);
+
+		ImGui::Indent();
+		let elem_field_count = spReflectionType_GetFieldCount(elem_type);
+		for (u32 jdx = 0; jdx < elem_field_count; ++jdx) {
+			let elem_field = spReflectionType_GetFieldByIndex(elem_type, jdx);
+			rDebug(elem_field);
+		}
+		ImGui::Unindent();
+
+	}
+	ImGui::Unindent();
 	if (pipeline_changed) {
 		rPipelineUpdate(graphics_pipeline);
 	}
+	ImGui::End();
 }
