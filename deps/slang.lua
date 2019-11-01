@@ -28,6 +28,7 @@ project "core"
 	addSourceDir("source/core")
 	location "source"
 	language "C++"
+	cppdialect "C++11" -- for macosx
 	uuid "F9BE7957-8399-899E-0C49-E714FDDD4B65"
 	kind "StaticLib"
 	filter { "system:linux" }
@@ -38,6 +39,7 @@ project "slang-generate"
 	addSourceDir("tools/slang-generate")
 	location "tools"
 	language "C++"
+	cppdialect "C++11" -- for macosx
 	kind "ConsoleApp"
 	uuid "66174227-8541-41FC-A6DF-4764FC66F78E" -- uuid(os.uuid(name .. '|' .. sourceDir))
 	links { "core" }
@@ -48,6 +50,7 @@ project "slang"
 	addSourceDir("source/slang")
 	location "source"
 	language "C++"
+	cppdialect "C++11" -- for macosx
 	uuid "DB00DA62-0533-4AFD-B59F-A67D5B3A0808"
 	kind "SharedLib"
 	links { "core" }
@@ -72,14 +75,15 @@ project "slang-glslang"
 	addSourceDir("source/slang-glslang")
 	location "source"
 	language "C++"
+	cppdialect "C++11" -- for macosx
 	uuid "C495878A-832C-485B-B347-0998A90CC936"
 	kind "SharedLib"
 	includedirs { "external/glslang" }
 
-	pchheader "pch.h"
-	pchsource "external/glslang/glslang/MachineIndependent/pch.cpp"
+	-- pchheader "pch.h"
+	-- pchsource "external/glslang/glslang/MachineIndependent/pch.cpp"
 
-	forceincludes "pch.h"
+	-- forceincludes "pch.h" -- for macosx
 	includedirs { "external/glslang/glslang/MachineIndependent" }
 
 	defines
@@ -103,6 +107,10 @@ project "slang-glslang"
 		files { "external/glslang/glslang/OSDependent/Windows/*" }
 		removefiles { "external/glslang/glslang/OSDependent/Windows/main.cpp" }
 	filter { "system:linux" }
+		links { "dl", "pthread" }
+		files {"external/glslang/glslang/OSDependent/Unix/*"}
+		buildoptions{"-fPIC", "-pthread"}
+	filter { "system:macosx" }
 		links { "dl", "pthread" }
 		files {"external/glslang/glslang/OSDependent/Unix/*"}
 		buildoptions{"-fPIC", "-pthread"}
